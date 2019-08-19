@@ -207,10 +207,10 @@ impl<'a> System<'a> for PlayerVisionSystem {
 				for x in -light.radius..light.radius {
 					for y in -light.radius..light.radius {
 						if x*x + y*y <= light.radius*light.radius {
-							let dig_x = position.x + x;
-							let dig_y = position.y + y;
-							if dig_x >= 0 && dig_x < width as i32 && dig_y >= 0 && dig_y < height as i32 {
-								vision_map.0[dig_x as usize][dig_y as usize] = new_vision_map.is_in_fov(dig_x, dig_y);
+							let light_x = position.x + x;
+							let light_y = position.y + y;
+							if light_x >= 0 && light_x < width as i32 && light_y >= 0 && light_y < height as i32 {
+								vision_map.0[light_x as usize][light_y as usize] = new_vision_map.is_in_fov(light_x, light_y);
 							} 
 						}
 					}
