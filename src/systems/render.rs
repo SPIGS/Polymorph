@@ -10,7 +10,7 @@ use crate::components::basic::{Position, Character, CycleAnimation, ColorLerp, L
 use crate::components::tags::{PlayerTag, TileTag, LookCursorTag, DirtyFlag, StaticFlag};
 use crate::level_generation::map::{LightMap, TransparencyMap, VisionMap};
 
-//TODO add specs imports here
+//* Lighting branch
 
 use crate::application::Context;
 
