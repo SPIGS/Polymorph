@@ -1,6 +1,6 @@
 use specs::{ReadStorage, WriteStorage, System, Entities, Write};
 
-use crate::components::basic::{Position, Character, Description, ColorLerp, Light};
+use crate::components::basic::{Position, Character, Description, ColorLerp, Light, LightMask};
 use crate::components::tags::{PlayerTag, TileTag, DirtyFlag, StaticFlag};
 
 use crate::state::{CurrentWorldAction};
@@ -62,6 +62,7 @@ impl<'a> System<'a> for NewLevelSystem {
 		WriteStorage<'a, DirtyFlag>,
 		WriteStorage<'a, StaticFlag>,
 		WriteStorage<'a, Light>,
+		WriteStorage<'a, LightMask>,
 		Write<'a, LightMap>,
 		Write<'a, TransparencyMap>,
 		Write<'a, VisionMap>,
@@ -71,14 +72,14 @@ impl<'a> System<'a> for NewLevelSystem {
 		Entities<'a>,
 	);
 
-	fn run (&mut self, (mut positions, mut characters, mut descriptions, mut color_lerps, player_tags, mut tile_tags, mut dirty_flags, mut static_flags, mut lights, mut light_map, mut transparency_map, mut vision_map, mut spawn_position, mut exit_position, mut current_world_action, entities): Self::SystemData) {
+	fn run (&mut self, (mut positions, mut characters, mut descriptions, mut color_lerps, player_tags, mut tile_tags, mut dirty_flags, mut static_flags, mut lights, mut light_masks, mut light_map, mut transparency_map, mut vision_map, mut spawn_position, mut exit_position, mut current_world_action, entities): Self::SystemData) {
 		let map_width = 100;
 		let map_height = 100;
 		self.current_level_number += 1;
 		self.current_level = Map::new(map_width, map_height, format!("{}{}", self.seed, self.current_level_number));
 		self.current_level.generate();
 		transparency_map.0 = self.current_level.transparency.clone();
-		light_map.0 = vec![vec![false; map_height]; map_width];
+		light_map.0 = vec![vec![0.0; map_height]; map_width];
 		vision_map.0 = vec![vec![false; map_height]; map_width];
 
 
@@ -104,15 +105,15 @@ impl<'a> System<'a> for NewLevelSystem {
 		for x in 0..map_width {
 			for y in 0..map_height {
 				match self.current_level.tiles[x as usize][y as usize] {
-					TileType::Floor => make_floor(&entities, &mut positions, &mut characters, &mut descriptions, &mut tile_tags, &mut self.current_level.number_generator, x as i32, y as i32),
-					TileType::Wall => make_wall(&entities, &mut positions, &mut characters, &mut descriptions, &mut tile_tags, x as i32, y as i32),
-					TileType::ShortGrass(distance) => {make_short_grass(&entities, &mut positions, &mut characters, &mut descriptions, &mut tile_tags, &mut self.current_level.number_generator, x, y, distance)},
-					TileType::TallGrass(distance) => {make_tall_grass(&entities, &mut positions, &mut characters, &mut descriptions, &mut tile_tags, &mut self.current_level.number_generator, x, y, distance)},
-					TileType::SmallMushroom => {make_small_mushroom(&entities, &mut positions, &mut characters, &mut descriptions, &mut tile_tags, &mut self.current_level.number_generator, x as i32, y as i32)},
-					TileType::LargeMushroom => {make_large_mushroom(&entities, &mut positions, &mut characters, &mut descriptions, &mut tile_tags, &mut self.current_level.number_generator, x as i32, y as i32)},
-					TileType::ShallowWater => {make_shallow_water(&entities, &mut positions, &mut characters, &mut descriptions, &mut color_lerps, &mut tile_tags, &mut self.current_level.number_generator, x as i32, y as i32)},
+					TileType::Floor => make_floor(&entities, &mut positions, &mut characters, &mut dirty_flags, &mut static_flags, &mut descriptions, &mut light_masks, &mut tile_tags, &mut self.current_level.number_generator, x as i32, y as i32),
+					TileType::Wall => make_wall(&entities, &mut positions, &mut characters, &mut dirty_flags, &mut static_flags, &mut descriptions, &mut light_masks, &mut tile_tags, x as i32, y as i32),
+					TileType::ShortGrass(distance) => {make_short_grass(&entities, &mut positions, &mut characters, &mut dirty_flags, &mut static_flags, &mut descriptions, &mut light_masks, &mut tile_tags, &mut self.current_level.number_generator, x, y, distance)},
+					TileType::TallGrass(distance) => {make_tall_grass(&entities, &mut positions, &mut characters, &mut dirty_flags, &mut static_flags, &mut descriptions, &mut light_masks, &mut tile_tags, &mut self.current_level.number_generator, x, y, distance)},
+					TileType::SmallMushroom => {make_small_mushroom(&entities, &mut positions, &mut characters, &mut dirty_flags, &mut static_flags, &mut lights, &mut descriptions, &mut tile_tags, &mut self.current_level.number_generator, x as i32, y as i32)},
+					TileType::LargeMushroom => {make_large_mushroom(&entities, &mut positions, &mut characters, &mut dirty_flags, &mut static_flags, &mut lights, &mut descriptions, &mut tile_tags, &mut self.current_level.number_generator, x as i32, y as i32)},
+					TileType::ShallowWater => {make_shallow_water(&entities, &mut positions, &mut characters, &mut dirty_flags, &mut static_flags, &mut descriptions, &mut light_masks, &mut color_lerps, &mut tile_tags, &mut self.current_level.number_generator, x as i32, y as i32)},
 					TileType::ShallowLava => {make_shallow_lava(&entities, &mut positions, &mut characters, &mut dirty_flags, &mut static_flags, &mut lights, &mut descriptions, &mut color_lerps, &mut tile_tags, &mut self.current_level.number_generator, x as i32, y as i32)},
-					TileType::DeepWater => {make_deep_water(&entities, &mut positions, &mut characters, &mut descriptions, &mut color_lerps, &mut tile_tags, &mut self.current_level.number_generator, x as i32, y as i32)},
+					TileType::DeepWater => {make_deep_water(&entities, &mut positions, &mut characters, &mut dirty_flags, &mut static_flags, &mut descriptions, &mut light_masks, &mut color_lerps, &mut tile_tags, &mut self.current_level.number_generator, x as i32, y as i32)},
 					TileType::DeepLava => {make_deep_lava(&entities, &mut positions, &mut characters, &mut dirty_flags, &mut static_flags, &mut lights, &mut descriptions, &mut color_lerps, &mut tile_tags, &mut self.current_level.number_generator, x as i32, y as i32)},
 					TileType::Empty => {},
 				}
@@ -121,11 +122,14 @@ impl<'a> System<'a> for NewLevelSystem {
 	}
 }
 
-fn make_floor (entities: &Entities, positions: &mut WriteStorage<Position>, characters: &mut WriteStorage<Character>, 
-				descriptions: &mut WriteStorage<Description>, tile_tags: &mut WriteStorage<TileTag>, number_generator: &mut StdRng, x: i32, y: i32) {
+fn make_floor (entities: &Entities, positions: &mut WriteStorage<Position>, characters: &mut WriteStorage<Character>, dirty_flags : &mut WriteStorage<DirtyFlag>, static_flags: &mut WriteStorage<StaticFlag>, 
+				descriptions: &mut WriteStorage<Description>, light_masks : &mut WriteStorage<LightMask>, tile_tags: &mut WriteStorage<TileTag>, number_generator: &mut StdRng, x: i32, y: i32) {
 	let soil_chance = number_generator.gen_range(0, 100);
 	let floor = entities.build_entity()
 		.with(Position::new(x, y), positions)
+		.with(LightMask, light_masks)
+		.with(StaticFlag, static_flags)
+		.with(DirtyFlag, dirty_flags)
 		.with(TileTag, tile_tags)
 		.build();
 
@@ -144,18 +148,21 @@ fn make_floor (entities: &Entities, positions: &mut WriteStorage<Position>, char
 	}
 }
 
-fn make_wall (entities: &Entities, positions: &mut WriteStorage<Position>, characters: &mut WriteStorage<Character>, 
-				descriptions: &mut WriteStorage<Description>, tile_tags: &mut WriteStorage<TileTag>, x: i32, y: i32) {
+fn make_wall (entities: &Entities, positions: &mut WriteStorage<Position>, characters: &mut WriteStorage<Character>, dirty_flags : &mut WriteStorage<DirtyFlag>, static_flags: &mut WriteStorage<StaticFlag>,
+				descriptions: &mut WriteStorage<Description>, light_masks : &mut WriteStorage<LightMask>, tile_tags: &mut WriteStorage<TileTag>, x: i32, y: i32) {
 	let _ = entities.build_entity()
 		.with(Position::new(x, y), positions)
 		.with(Character::new('#', colors::WHITE, colors::BLACK), characters)
 		.with(Description::new(String::from("Cavern Wall"), String::from("A large, flat wall of solid rock.")), descriptions)
+		.with(LightMask, light_masks)
+		.with(StaticFlag, static_flags)
+		.with(DirtyFlag, dirty_flags)
 		.with(TileTag, tile_tags)
 		.build();
 }
 
-fn make_short_grass (entities: &Entities, positions: &mut WriteStorage<Position>, characters: &mut WriteStorage<Character>, 
-				descriptions: &mut WriteStorage<Description>, tile_tags: &mut WriteStorage<TileTag>, number_generator: &mut StdRng, x: usize, y: usize, distance: i32) {
+fn make_short_grass (entities: &Entities, positions: &mut WriteStorage<Position>, characters: &mut WriteStorage<Character>, dirty_flags : &mut WriteStorage<DirtyFlag>, static_flags: &mut WriteStorage<StaticFlag>,
+				descriptions: &mut WriteStorage<Description>, light_masks : &mut WriteStorage<LightMask>, tile_tags: &mut WriteStorage<TileTag>, number_generator: &mut StdRng, x: usize, y: usize, distance: i32) {
 	let mut color = colors::GREEN;
 
 	// set the healthy color
@@ -197,12 +204,15 @@ fn make_short_grass (entities: &Entities, positions: &mut WriteStorage<Position>
 		.with(Position::new(x as i32, y as i32), positions)
 		.with(Character::new('\u{FD}', color, colors::BLACK), characters)
 		.with(Description::new(String::from("Grass"), String::from("A patch of short cave grass.")), descriptions)
+		.with(LightMask, light_masks)
+		.with(StaticFlag, static_flags)
+		.with(DirtyFlag, dirty_flags)
 		.with(TileTag, tile_tags)
 		.build();
 }
 
-fn make_tall_grass (entities: &Entities, positions: &mut WriteStorage<Position>, characters: &mut WriteStorage<Character>, 
-				descriptions: &mut WriteStorage<Description>, tile_tags: &mut WriteStorage<TileTag>, number_generator: &mut StdRng, x: usize, y: usize, distance: i32) {
+fn make_tall_grass (entities: &Entities, positions: &mut WriteStorage<Position>, characters: &mut WriteStorage<Character>, dirty_flags : &mut WriteStorage<DirtyFlag>, static_flags: &mut WriteStorage<StaticFlag>, 
+				descriptions: &mut WriteStorage<Description>, light_masks : &mut WriteStorage<LightMask>, tile_tags: &mut WriteStorage<TileTag>, number_generator: &mut StdRng, x: usize, y: usize, distance: i32) {
 	let character: char;
 	let mut color = colors::GREEN;
 
@@ -252,12 +262,15 @@ fn make_tall_grass (entities: &Entities, positions: &mut WriteStorage<Position>,
 		.with(Position::new(x as i32, y as i32), positions)
 		.with(Character::new(character, color, colors::BLACK), characters)
 		.with(Description::new(String::from("Grass"), String::from("A patch of tall, green cave grass.")), descriptions)
+		.with(LightMask, light_masks)
+		.with(StaticFlag, static_flags)
+		.with(DirtyFlag, dirty_flags)
 		.with(TileTag, tile_tags)
 		.build();
 }
 
-fn make_small_mushroom (entities: &Entities, positions: &mut WriteStorage<Position>, characters: &mut WriteStorage<Character>, 
-				descriptions: &mut WriteStorage<Description>, tile_tags: &mut WriteStorage<TileTag>, number_generator: &mut StdRng, x: i32, y: i32) {
+fn make_small_mushroom (entities: &Entities, positions: &mut WriteStorage<Position>, characters: &mut WriteStorage<Character>, dirty_flags : &mut WriteStorage<DirtyFlag>, static_flags: &mut WriteStorage<StaticFlag>,  
+				lights: &mut WriteStorage<Light>, descriptions: &mut WriteStorage<Description>, tile_tags: &mut WriteStorage<TileTag>, number_generator: &mut StdRng, x: i32, y: i32) {
 	let color: Color;
 
 	if number_generator.gen_range(0,100) < 50 {
@@ -274,12 +287,15 @@ fn make_small_mushroom (entities: &Entities, positions: &mut WriteStorage<Positi
 		.with(Position::new(x, y), positions)
 		.with(Character::new('\u{2B}', color, colors::BLACK), characters)
 		.with(Description::new(String::from("Mushroom"), String::from("A small, biolumescent fungus. It glows a erie blue.")), descriptions)
+		.with(Light::new(2), lights)
+		.with(StaticFlag, static_flags)
+		.with(DirtyFlag, dirty_flags)
 		.with(TileTag, tile_tags)
 		.build();
 }
 
-fn make_large_mushroom (entities: &Entities, positions: &mut WriteStorage<Position>, characters: &mut WriteStorage<Character>, 
-				descriptions: &mut WriteStorage<Description>, tile_tags: &mut WriteStorage<TileTag>, number_generator: &mut StdRng, x: i32, y: i32) {
+fn make_large_mushroom (entities: &Entities, positions: &mut WriteStorage<Position>, characters: &mut WriteStorage<Character>, dirty_flags : &mut WriteStorage<DirtyFlag>, static_flags: &mut WriteStorage<StaticFlag>,  
+				lights: &mut WriteStorage<Light>, descriptions: &mut WriteStorage<Description>, tile_tags: &mut WriteStorage<TileTag>, number_generator: &mut StdRng, x: i32, y: i32) {
 	let character: char;
 	let color: Color;
 
@@ -303,12 +319,15 @@ fn make_large_mushroom (entities: &Entities, positions: &mut WriteStorage<Positi
 		.with(Position::new(x, y), positions)
 		.with(Character::new(character, color, colors::BLACK), characters)
 		.with(Description::new(String::from("Mushroom"), String::from("A large, biolumescent fungus. It glows a erie blue.")), descriptions)
+		.with(Light::new(5), lights)
+		.with(StaticFlag, static_flags)
+		.with(DirtyFlag, dirty_flags)
 		.with(TileTag, tile_tags)
 		.build();
 }
 
-fn make_shallow_water (entities: &Entities, positions: &mut WriteStorage<Position>, characters: &mut WriteStorage<Character>, 
-				descriptions: &mut WriteStorage<Description>, color_lerps: &mut WriteStorage<ColorLerp>, tile_tags: &mut WriteStorage<TileTag>, number_generator: &mut StdRng, x: i32, y: i32) {
+fn make_shallow_water (entities: &Entities, positions: &mut WriteStorage<Position>, characters: &mut WriteStorage<Character>, dirty_flags : &mut WriteStorage<DirtyFlag>, static_flags: &mut WriteStorage<StaticFlag>,
+				descriptions: &mut WriteStorage<Description>, light_masks : &mut WriteStorage<LightMask>, color_lerps: &mut WriteStorage<ColorLerp>, tile_tags: &mut WriteStorage<TileTag>, number_generator: &mut StdRng, x: i32, y: i32) {
 	let offset: f64 = number_generator.gen::<f64>() * 10.0;
 	let rate: f64 = number_generator.gen::<f64>() * 10.0;
 
@@ -317,6 +336,9 @@ fn make_shallow_water (entities: &Entities, positions: &mut WriteStorage<Positio
 		.with(Character::new('\u{F7}', colors::BLUE, colors::BLACK), characters)
 		.with(ColorLerp::new(colors::BLUE, colors::LIGHTER_BLUE, rate, offset), color_lerps)
 		.with(Description::new(String::from("Water"), String::from("Shimmers on the walls and ceiling. You can see bottom.")), descriptions)
+		.with(LightMask, light_masks)
+		.with(StaticFlag, static_flags)
+		.with(DirtyFlag, dirty_flags)
 		.with(TileTag, tile_tags)
 		.build();
 }
@@ -338,8 +360,8 @@ fn make_shallow_lava (entities: &Entities, positions: &mut WriteStorage<Position
 		.build();
 }
 
-fn make_deep_water (entities: &Entities, positions: &mut WriteStorage<Position>, characters: &mut WriteStorage<Character>, 
-				descriptions: &mut WriteStorage<Description>, color_lerps: &mut WriteStorage<ColorLerp>, tile_tags: &mut WriteStorage<TileTag>, number_generator: &mut StdRng, x: i32, y: i32) {
+fn make_deep_water (entities: &Entities, positions: &mut WriteStorage<Position>, characters: &mut WriteStorage<Character>, dirty_flags : &mut WriteStorage<DirtyFlag>, static_flags: &mut WriteStorage<StaticFlag>,
+				descriptions: &mut WriteStorage<Description>, light_masks : &mut WriteStorage<LightMask>, color_lerps: &mut WriteStorage<ColorLerp>, tile_tags: &mut WriteStorage<TileTag>, number_generator: &mut StdRng, x: i32, y: i32) {
 	let offset: f64 = number_generator.gen::<f64>() * 10.0;
 	let rate: f64 = number_generator.gen::<f64>() * 10.0;
 
@@ -360,6 +382,9 @@ fn make_deep_water (entities: &Entities, positions: &mut WriteStorage<Position>,
 		.with(Character::new('\u{F7}', colors::DARK_BLUE, colors::BLACK), characters)
 		.with(ColorLerp::new(colors::DARK_BLUE, color_b, rate, offset), color_lerps)
 		.with(Description::new(String::from("Water"), String::from("Shimmers on the walls and ceiling. Darkness lies beneath the surface.")), descriptions)
+		.with(LightMask, light_masks)
+		.with(StaticFlag, static_flags)
+		.with(DirtyFlag, dirty_flags)
 		.with(TileTag, tile_tags)
 		.build();
 }

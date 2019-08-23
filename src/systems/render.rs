@@ -6,7 +6,7 @@ use tcod::map::FovAlgorithm;
 
 use crate::application::{DeltaTime};
 
-use crate::components::basic::{Position, Character, CycleAnimation, ColorLerp, Light};
+use crate::components::basic::{Position, Character, CycleAnimation, ColorLerp, Light, LightMask};
 use crate::components::tags::{PlayerTag, TileTag, LookCursorTag, DirtyFlag, StaticFlag};
 use crate::level_generation::map::{LightMap, TransparencyMap, VisionMap};
 
@@ -146,6 +146,7 @@ impl<'a> System<'a> for LightingSystem {
 		ReadStorage<'a, Position>,
 		ReadStorage<'a, TileTag>,
 		ReadStorage<'a, StaticFlag>,
+		ReadStorage<'a, LightMask>,
 		WriteStorage<'a, Light>,
 		WriteStorage<'a, Character>,
 		WriteStorage<'a, DirtyFlag>,
@@ -155,7 +156,7 @@ impl<'a> System<'a> for LightingSystem {
 		Entities<'a>,
 	);
 
-	fn run (&mut self, (positions, tile_tags, static_flags, mut lights, mut characters, mut dirty_flags, mut light_maps, mut transparency_map, entities) : Self::SystemData) {
+	fn run (&mut self, (positions, tile_tags, static_flags, light_masks, mut lights, mut characters, mut dirty_flags, mut light_maps, mut transparency_map, entities) : Self::SystemData) {
 		use specs::Join;
 		//TODO just work on static lights first
 		let mut cleaned_lights : Vec<u32> = Vec::new();
@@ -173,18 +174,19 @@ impl<'a> System<'a> for LightingSystem {
 				}
 			}
 
-			//let left_bound = (position.x - light.radius).max(0);
-			//let right_bound = (position.x + light.radius).max(width - 1);
-			//let upper
-
 			//compute the fov from the position of the light
 			this_light_map.compute_fov(position.x as i32, position.y as i32, light.radius, true, FovAlgorithm::Shadow);
 
 			//set the points on the map as lit
 			for x in 0..width {
 				for y in 0..height {
-					if light_maps.0[x][y] == false {
-						light_maps.0[x][y] = this_light_map.is_in_fov(x as i32, y as i32);
+					if this_light_map.is_in_fov(x as i32, y as i32){
+						let mut distance : f64 = ((position.x - x as i32).pow(2) + (position.y - y as i32).pow(2)) as f64;
+						distance = distance.sqrt();
+						let attentuation = light.get_attenuation(distance);
+						if attentuation > light_maps.0[x][y] {
+							light_maps.0[x][y] = attentuation;
+						}
 					}
 				}
 			}
@@ -196,6 +198,19 @@ impl<'a> System<'a> for LightingSystem {
 		//remove the dirty flag from the cleaned lights
 		for light in cleaned_lights.iter() {
 			dirty_flags.remove(entities.entity(*light));
+		}
+
+		let mut cleaned_entities : Vec<u32> = Vec::new();
+		//change attentuation of static entities affected by light
+		for (position, _light_mask, _dirty_flag, _static_flag, character, entity) in (&positions, &light_masks, &dirty_flags, &static_flags, &mut characters, &entities).join() {
+			let char_color : tcod::Color = character.current_foreground;
+			character.current_foreground = tcod::Color::new_from_hsv(char_color.hsv().0, char_color.hsv().1, light_maps.0[position.x as usize][position.y as usize] as f32);
+			cleaned_entities.push(entity.id());
+		}
+
+		//remove the dirty flag from the cleaned entities
+		for entity in cleaned_entities.iter() {
+			dirty_flags.remove(entities.entity(*entity));
 		}
 
 	}

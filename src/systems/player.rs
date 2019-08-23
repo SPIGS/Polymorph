@@ -219,7 +219,7 @@ impl<'a> System<'a> for PlayerVisionSystem {
 				// set the light sources in the distance that are within line of sight to be visible 
 				for x in 0..width {
 					for y in 0..height {
-						if light_maps.0[x][y] && new_vision_map.is_in_fov(x as i32, y as i32) {
+						if light_maps.0[x][y] > 0.0 && new_vision_map.is_in_fov(x as i32, y as i32) {
 							vision_map.0[x][y] = true;
 						}
 					}
