@@ -7,10 +7,11 @@ use crate::state::{CurrentWorldAction};
 
 use crate::level_generation::map::*;
 use rand::{Rng, StdRng};
-use tcod::colors;
-use tcod::Color;
+use tcod::{colors, Color};
 
-use crate::level_generation::map::LightMap;
+use crate::systems::render::ColorWithAlpha;
+
+use crate::systems::light::{StaticLightMap, VisionMap, TransparencyMap, DynamicLightMap};
 
 #[derive(Default)]
 pub struct ExitPosition (pub (i32,i32));
@@ -63,7 +64,8 @@ impl<'a> System<'a> for NewLevelSystem {
 		WriteStorage<'a, StaticFlag>,
 		WriteStorage<'a, Light>,
 		WriteStorage<'a, LightMask>,
-		Write<'a, LightMap>,
+		Write<'a, StaticLightMap>,
+		Write<'a, DynamicLightMap>,
 		Write<'a, TransparencyMap>,
 		Write<'a, VisionMap>,
 		Write<'a, SpawnPosition>,
@@ -72,14 +74,15 @@ impl<'a> System<'a> for NewLevelSystem {
 		Entities<'a>,
 	);
 
-	fn run (&mut self, (mut positions, mut characters, mut descriptions, mut color_lerps, player_tags, mut tile_tags, mut dirty_flags, mut static_flags, mut lights, mut light_masks, mut light_map, mut transparency_map, mut vision_map, mut spawn_position, mut exit_position, mut current_world_action, entities): Self::SystemData) {
+	fn run (&mut self, (mut positions, mut characters, mut descriptions, mut color_lerps, player_tags, mut tile_tags, mut dirty_flags, mut static_flags, mut lights, mut light_masks, mut static_light_map, mut dynamic_light_map, mut transparency_map, mut vision_map, mut spawn_position, mut exit_position, mut current_world_action, entities): Self::SystemData) {
 		let map_width = 100;
 		let map_height = 100;
 		self.current_level_number += 1;
 		self.current_level = Map::new(map_width, map_height, format!("{}{}", self.seed, self.current_level_number));
 		self.current_level.generate();
 		transparency_map.0 = self.current_level.transparency.clone();
-		light_map.0 = vec![vec![0.0; map_height]; map_width];
+		static_light_map.0 = vec![vec![ColorWithAlpha::new_from_tcod(colors::BLACK, 0.0); map_height]; map_width];
+		dynamic_light_map.0 = vec![vec![ColorWithAlpha::new_from_tcod(colors::BLACK, 0.0); map_height]; map_width];
 		vision_map.0 = vec![vec![false; map_height]; map_width];
 
 
@@ -287,7 +290,7 @@ fn make_small_mushroom (entities: &Entities, positions: &mut WriteStorage<Positi
 		.with(Position::new(x, y), positions)
 		.with(Character::new('\u{2B}', color, colors::BLACK), characters)
 		.with(Description::new(String::from("Mushroom"), String::from("A small, biolumescent fungus. It glows a erie blue.")), descriptions)
-		.with(Light::new(2), lights)
+		.with(Light::new(2, color), lights)
 		.with(StaticFlag, static_flags)
 		.with(DirtyFlag, dirty_flags)
 		.with(TileTag, tile_tags)
@@ -319,7 +322,7 @@ fn make_large_mushroom (entities: &Entities, positions: &mut WriteStorage<Positi
 		.with(Position::new(x, y), positions)
 		.with(Character::new(character, color, colors::BLACK), characters)
 		.with(Description::new(String::from("Mushroom"), String::from("A large, biolumescent fungus. It glows a erie blue.")), descriptions)
-		.with(Light::new(5), lights)
+		.with(Light::new(5, color), lights)
 		.with(StaticFlag, static_flags)
 		.with(DirtyFlag, dirty_flags)
 		.with(TileTag, tile_tags)
@@ -354,7 +357,7 @@ fn make_shallow_lava (entities: &Entities, positions: &mut WriteStorage<Position
 		.with(ColorLerp::new(colors::RED, colors::GREY, rate, offset), color_lerps)
 		.with(Description::new(String::from("Lava"), String::from("Eminates heat. Glows a dull red and gray.")), descriptions)
 		.with(TileTag, tile_tags)
-		.with(Light::new(5), lights)
+		.with(Light::new(5, colors::RED), lights)
 		.with(StaticFlag, static_flags)
 		.with(DirtyFlag, dirty_flags)
 		.build();
@@ -411,7 +414,7 @@ fn make_deep_lava (entities: &Entities, positions: &mut WriteStorage<Position>, 
 		.with(ColorLerp::new(colors::ORANGE, color_b, rate, offset), color_lerps)
 		.with(Description::new(String::from("Lava"), String::from("Eminates strong heat. Glows a range of yellows, oranges, and reds.")), descriptions)
 		.with(TileTag, tile_tags)
-		.with(Light::new(10), lights)
+		.with(Light::new(10, colors::RED), lights)
 		.with(StaticFlag, static_flags)
 		.with(DirtyFlag, dirty_flags)
 		.build();

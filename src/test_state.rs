@@ -4,23 +4,21 @@ use tcod::colors;
 
 use specs::{Dispatcher, World, Builder};
 
-use crate::state::State;
-use crate::state::StateAction;
-use crate::state::WorldAction;
-use crate::state::CurrentWorldAction;
+use crate::state::{State, StateAction, WorldAction, CurrentWorldAction};
 use crate::application::{Context, DeltaTime};
 
 use crate::description_state::DescriptionState;
 use crate::level_transistion_state::LevelTransition;
 
-use crate::components::basic::{Position, Character, CycleAnimation, ColorLerp, Description, Actor, Light};
+use crate::components::basic::{Position, Character, CycleAnimation, ColorLerp, Description, Actor, Light, LightMask};
 use crate::components::tags::{PlayerTag, TileTag, LookCursorTag, DirtyFlag, StaticFlag};
 
 use crate::systems::render;
-use crate::level_generation::map::{LightMap, TransparencyMap, VisionMap};
+use crate::systems::light::{StaticLightMap, TransparencyMap, VisionMap};
 use crate::systems::player::{PlayerControlSystem, CurrentInput, PlayerVisionSystem};
 use crate::systems::actor::{ActorAction, ActorSystem};
 use crate::systems::level::{SpawnPosition, ExitPosition, ClearLevelSystem, NewLevelSystem};
+use crate::systems::light::{DynamicLightSystem, BakedLightingSystem, DynamicLightMap, LightCombine};
 
 pub struct TestState <'a, 'b> {
 	world: World,
@@ -28,6 +26,7 @@ pub struct TestState <'a, 'b> {
 	current_level: i32,
 	update_dispatcher: Dispatcher<'a, 'b>,
 	new_level_dispatcher: Dispatcher<'a, 'b>,
+	bake_lights_dispatcher : Dispatcher<'a, 'b>,
 	offscreen: Offscreen,
 }
 
@@ -52,24 +51,25 @@ impl <'a, 'b> TestState <'a, 'b> {
 		world.add_resource(DeltaTime(0.0));
 
 		world.add_resource(VisionMap(Vec::default()));
-		world.add_resource(LightMap(Vec::default()));
+		world.add_resource(StaticLightMap(Vec::default()));
+		world.add_resource(DynamicLightMap(Vec::default()));
 		world.add_resource(TransparencyMap(Vec::default()));
 
 		world.add_resource(ExitPosition((0,0)));
 		world.add_resource(SpawnPosition((0,0)));
 
 		let seed = String::from("Test");
-
+		
 		// make dispatchers
 		//update dispatcher is called every frame and updates the following systems
 		let mut update_dispatcher = specs::DispatcherBuilder::new()
 				.with(PlayerControlSystem {is_looking: false}, "player_controls", &[])
 				.with(ActorSystem::new(), "action_system", &["player_controls"])
-				.with(render::AnimationSystem, "animation_system", &[])
-				.with(render::LightingSystem, "lighting_system", &["animation_system"])
-				.with(PlayerVisionSystem, "vision_system", &["lighting_system"])
+				.with(DynamicLightSystem, "dynamic_light_system", &[])
+				.with(LightCombine, "light_source_combine", &["dynamic_light_system"])
+				.with(render::AnimationSystem, "animation_system", &["dynamic_light_system", "light_source_combine"])
+				.with(PlayerVisionSystem{known_player_position : (0,0)}, "vision_system", &["dynamic_light_system", "light_source_combine"])	
 				.build();
-
 		update_dispatcher.setup(&mut world.res);
 
 		// new level dispatcher is called whenever a new level needs to be generated.
@@ -79,6 +79,13 @@ impl <'a, 'b> TestState <'a, 'b> {
 				.build();
 
 		new_level_dispatcher.setup(&mut world.res);
+
+		//make the dispatcher for baked lighting
+		let mut baked_lights_dispatcher = specs::DispatcherBuilder::new()
+				.with(BakedLightingSystem, "baked_lighting_system", &[])
+				.build();
+
+		baked_lights_dispatcher.setup(&mut world.res);
 		
 		let offscreen = Offscreen::new(ctx.width, ctx.height);
 
@@ -88,6 +95,7 @@ impl <'a, 'b> TestState <'a, 'b> {
 			current_level: 1,
 			update_dispatcher: update_dispatcher,
 			new_level_dispatcher: new_level_dispatcher,
+			bake_lights_dispatcher: baked_lights_dispatcher,
 			offscreen: offscreen,
 		}
 	}
@@ -108,7 +116,8 @@ impl <'a, 'b> State for TestState <'a, 'b> {
 			.with(Character::new('@', colors::WHITE, colors::RED))
 			.with(CycleAnimation::new(4.0, vec!['@', '!']))
 			.with(Description::new(String::from("You"), String::from("Damn you ugly")))
-			.with(Light::new(15))
+			.with(Light::new(5, colors::WHITE))
+			.with(LightMask)
 			.with(Actor::new(ActorAction::WaitForInput))
 			.with(PlayerTag)
 			.build();
@@ -117,10 +126,12 @@ impl <'a, 'b> State for TestState <'a, 'b> {
 		self.world.create_entity()
 			.with(Position::new(50, 50))
 			.with(Character::new('&', colors::YELLOW, colors::BLACK))
-			.with(Light::new(20))
+			.with(Light::new(20, colors::WHITE))
 			.with(StaticFlag)
 			.with(DirtyFlag)
 			.build();
+
+		self.bake_lights_dispatcher.dispatch(&mut self.world.res);
 	}
 	
 	fn on_enter (&mut self) {

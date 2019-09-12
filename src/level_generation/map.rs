@@ -16,15 +16,6 @@ pub enum TileType {
 	DeepLava,
 }
 
-#[derive(Default)]
-pub struct VisionMap (pub Vec<Vec<bool>>);
-
-#[derive(Default)]
-pub struct LightMap (pub Vec<Vec<f64>>);
-
-#[derive(Default)]
-pub struct TransparencyMap (pub Vec<Vec<bool>>);
-
 /// Returns true if the given `TileType` can be safely traversed by the player.
 pub fn is_safe (tile : &TileType) -> bool {
 	match tile {

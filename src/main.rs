@@ -15,7 +15,8 @@ pub mod level_generation;
 
 use application::Application;
 
+//* 60 by 40
 fn main() {
-	let mut app = Application::new(60, 40, String::from("Test Application"), 60);
+	let mut app = Application::new(60, 34, String::from("Test Application"), 60);
 	app.run();
 }

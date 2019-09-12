@@ -1,11 +1,11 @@
 use tcod::colors::Color;
 
-use specs::{Component, VecStorage, NullStorage};
+use specs::{Component, VecStorage, DenseVecStorage};
 
 use crate::systems::actor::*;
 
-#[derive(Debug, Component, PartialEq)]
-#[storage(VecStorage)]
+#[derive(Debug, PartialEq, Component)]
+#[storage(DenseVecStorage)]
 pub struct Position {
 	pub x: i32,
 	pub y: i32,
@@ -221,22 +221,24 @@ impl ColorLerp {
 
 }
 
-#[derive(Component, Default)]
+#[derive(Component)]
 #[storage(VecStorage)]
 pub struct LightMask;
 
 #[derive(Component)]
-#[storage(VecStorage)]
+#[storage(DenseVecStorage)]
 pub struct Light {
 	pub radius : i32,
 	pub position : (i32,i32),
+	pub color : Color,
 }
 
 impl Light {
-	pub fn new (r: i32) -> Self {
+	pub fn new (r: i32, c : Color) -> Self {
 		Light {
 			radius : r,
 			position : (0,0),
+			color : c,
 		}
 	}
 

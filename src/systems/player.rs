@@ -14,7 +14,7 @@ use crate::systems::actor::ActorAction;
 use crate::state::{CurrentWorldAction, WorldAction};
 use crate::systems::level::ExitPosition;
 
-use crate::level_generation::map::{LightMap, VisionMap, TransparencyMap};
+use crate::systems::light::{StaticLightMap, VisionMap, TransparencyMap, DynamicLightMap};
 
 
 #[derive(Default)]
@@ -47,7 +47,7 @@ impl<'a> System<'a> for PlayerControlSystem {
 
 		if !self.is_looking {
 			// get normal player input
-			for (position, actor, _player_tag) in (&mut positions, &mut actors, &player_tags).join() {
+			for (position, actor, _player_tag) in (&positions, &mut actors, &player_tags).join() {
 				match current_input.0 {
 					// arrow keys
 					Some(Key{code: KeyCode::Up, ..}) => {actor.action = ActorAction::ActionMoveUp},
@@ -164,26 +164,26 @@ impl<'a> System<'a> for PlayerControlSystem {
 	}
 }
 
-pub struct PlayerVisionSystem;
+pub struct PlayerVisionSystem {
+	pub known_player_position : (i32, i32),
+}
 
 impl<'a> System<'a> for PlayerVisionSystem {
 
 	type SystemData = (
 		ReadStorage<'a, Position>,
 		ReadStorage<'a, PlayerTag>,
-		WriteStorage<'a, Light>,
-		Read<'a, LightMap>,
+		ReadStorage<'a, Light>,
+		Read<'a, StaticLightMap>,
+		Read<'a, DynamicLightMap>,
 		Write<'a, VisionMap>,
 		Read <'a, TransparencyMap>
 	);
 
-	fn run (&mut self, (positions, player_tags, mut lights, light_maps, mut vision_map, transparency_map) : Self::SystemData) {
+	fn run (&mut self, (positions, player_tags, lights, static_map, dynamic_map, mut vision_map, transparency_map) : Self::SystemData) {
 		use specs::Join;
-		for (position, light, _player_tag) in (&positions, &mut lights, &player_tags).join() {
-			if position.x != light.position.0 || position.y != light.position.1 {
-				// update light position
-				light.position.0 = position.x;
-				light.position.1 = position.y;
+		for (position, light, _player_tag) in (&positions, &lights, &player_tags).join() {
+			if position.x != self.known_player_position.0 || position.y != self.known_player_position.1 {
 				
 				// get width and height and reset vision map
 				let width = vision_map.0.len();
@@ -201,7 +201,7 @@ impl<'a> System<'a> for PlayerVisionSystem {
 				}
 				
 				//compute the fov at double the radius so as to include possible light sources in the distance. 
-				new_vision_map.compute_fov(position.x as i32, position.y as i32, light.radius * 2, true, FovAlgorithm::Shadow);
+				new_vision_map.compute_fov(position.x as i32, position.y as i32, light.radius * 6, true, FovAlgorithm::Shadow);
 				
 				// set the tiles in the players actual visiual radius to visible
 				for x in -light.radius..light.radius {
@@ -215,11 +215,11 @@ impl<'a> System<'a> for PlayerVisionSystem {
 						}
 					}
 				}
-
+				
 				// set the light sources in the distance that are within line of sight to be visible 
 				for x in 0..width {
 					for y in 0..height {
-						if light_maps.0[x][y] > 0.0 && new_vision_map.is_in_fov(x as i32, y as i32) {
+						if (static_map.0[x][y].alpha > 0.0 || dynamic_map.0[x][y].alpha > 0.0) && new_vision_map.is_in_fov(x as i32, y as i32) {
 							vision_map.0[x][y] = true;
 						}
 					}
