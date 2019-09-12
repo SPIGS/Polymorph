@@ -16,15 +16,6 @@ pub enum TileType {
 	DeepLava,
 }
 
-#[derive(Default)]
-pub struct VisionMap (pub Vec<Vec<bool>>);
-
-#[derive(Default)]
-pub struct LightMap (pub Vec<Vec<bool>>);
-
-#[derive(Default)]
-pub struct TransparencyMap (pub Vec<Vec<bool>>);
-
 /// Returns true if the given `TileType` can be safely traversed by the player.
 pub fn is_safe (tile : &TileType) -> bool {
 	match tile {
@@ -172,8 +163,8 @@ impl Map {
 			cellular_automata::smooth(&mut self.tiles);
 			cellular_automata::clean_up_walls(&mut self.tiles, 5);
 			cellular_automata::water(TileType::ShallowLava, &mut self.tiles, &mut self.number_generator);
-			cellular_automata::plant(&mut self.tiles, &mut self.number_generator, TileType::ShortGrass(0), 25);
-			cellular_automata::grow(&mut self.tiles, TileType::ShortGrass(0));
+			cellular_automata::plant(&mut self.tiles, &mut self.number_generator, TileType::SmallMushroom, 25);
+			cellular_automata::grow(&mut self.tiles, TileType::SmallMushroom);
 			cellular_automata::remove_unseen_walls(&mut self.tiles);
 		}
 

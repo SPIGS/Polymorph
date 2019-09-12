@@ -1,33 +1,64 @@
-use specs::{World, WriteStorage, Read, System, ReadStorage, Entities, Write};
+use specs::{World, WriteStorage, Read, System};
 
 use tcod::console::*;
-use tcod::map::Map as TcodMap;
-use tcod::map::FovAlgorithm;
 
 use crate::application::{DeltaTime};
 
-use crate::components::basic::{Position, Character, CycleAnimation, ColorLerp, Light};
-use crate::components::tags::{PlayerTag, TileTag, LookCursorTag, DirtyFlag, StaticFlag};
-use crate::level_generation::map::{LightMap, TransparencyMap, VisionMap};
+use crate::components::basic::{Position, Character, CycleAnimation, ColorLerp};
+use crate::components::tags::{PlayerTag, TileTag, LookCursorTag};
+use crate::systems::light::{VisionMap};
 
-//TODO add specs imports here
+//* Lighting branch
 
 use crate::application::Context;
+use std::ops::Add;
 
+#[derive(PartialEq, Copy, Clone, Debug, Default)]
+pub struct ColorWithAlpha {
+	pub rgb : tcod::Color,
+	pub alpha : f64,
+}
 
+impl ColorWithAlpha {
+	pub fn new (r : u8, g : u8, b : u8, a : f64) -> Self {
+		Self {
+			rgb : tcod::Color::new(r, g, b),
+			alpha : a,
+		}
+	}
+
+	pub fn new_from_tcod (color : tcod::Color , a : f64) -> Self {
+		Self {
+			rgb : color,
+			alpha : a,
+		}
+	}	
+}
+
+impl Add<Color2> for Color2 {
+	type Output = Color2;
+
+	fn add (self, other : Color2) -> Color2 {
+		let r = ((self.rgb.r as u16 + other.rgb.r as u16)/2) as u8;
+		let g = ((self.rgb.g as u16 + other.rgb.g as u16)/2) as u8;
+		let b = ((self.rgb.b as u16 + other.rgb.b as u16)/2) as u8;
+		Self {
+			rgb : tcod::Color::new(r, g, b),
+			alpha : (self.alpha + other.alpha).min(1.0),
+		}
+	}
+}
 
 //TODO make this function only render entities
 //? Might not need root to be passed into this function
 pub fn render (ctx: &Context, offscreen: &mut Offscreen, window: &mut Root, world: &World) {
 	use specs::Join;
-	
 	// Load storages
 	let (positions, characters, player, tiles, look_cursor) = (world.read_storage::<Position>(), 
 										   world.read_storage::<Character>(),
 										   world.read_storage::<PlayerTag>(),
 										   world.read_storage::<TileTag>(),
 										   world.read_storage::<LookCursorTag>(),
-
 										   );
 
 
@@ -137,66 +168,4 @@ impl<'a> System<'a> for AnimationSystem {
 		}
 	}
 
-}
-
-pub struct LightingSystem;
-
-impl<'a> System<'a> for LightingSystem {
-	type SystemData = (
-		ReadStorage<'a, Position>,
-		ReadStorage<'a, TileTag>,
-		ReadStorage<'a, StaticFlag>,
-		WriteStorage<'a, Light>,
-		WriteStorage<'a, Character>,
-		WriteStorage<'a, DirtyFlag>,
-		
-		Write<'a, LightMap>,
-		Read<'a, TransparencyMap>,
-		Entities<'a>,
-	);
-
-	fn run (&mut self, (positions, tile_tags, static_flags, mut lights, mut characters, mut dirty_flags, mut light_maps, mut transparency_map, entities) : Self::SystemData) {
-		use specs::Join;
-		//TODO just work on static lights first
-		let mut cleaned_lights : Vec<u32> = Vec::new();
-		for (position, light, _dirty_flag, _static_flag, entity) in (&positions, &mut lights, &mut dirty_flags, &static_flags, &entities).join() {
-			// get the width and height of the map		
-			let width = transparency_map.0.len();
-			let height = transparency_map.0[0].len();
-			//make the fov map
-			let mut this_light_map = TcodMap::new(width as i32, height as i32);
-			
-			// set the points on the fov map for transparency
-			for x in 0..width as i32 {
-				for y in 0..height as i32 {
-					this_light_map.set(x, y, transparency_map.0[x as usize][y as usize], false);
-				}
-			}
-
-			//let left_bound = (position.x - light.radius).max(0);
-			//let right_bound = (position.x + light.radius).max(width - 1);
-			//let upper
-
-			//compute the fov from the position of the light
-			this_light_map.compute_fov(position.x as i32, position.y as i32, light.radius, true, FovAlgorithm::Shadow);
-
-			//set the points on the map as lit
-			for x in 0..width {
-				for y in 0..height {
-					if light_maps.0[x][y] == false {
-						light_maps.0[x][y] = this_light_map.is_in_fov(x as i32, y as i32);
-					}
-				}
-			}
-
-			//add the light to the cleaned list
-			cleaned_lights.push(entity.id());
-		}
-
-		//remove the dirty flag from the cleaned lights
-		for light in cleaned_lights.iter() {
-			dirty_flags.remove(entities.entity(*light));
-		}
-
-	}
 }

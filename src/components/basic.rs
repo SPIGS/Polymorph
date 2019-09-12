@@ -1,11 +1,11 @@
 use tcod::colors::Color;
 
-use specs::{Component, VecStorage};
+use specs::{Component, VecStorage, DenseVecStorage};
 
 use crate::systems::actor::*;
 
-#[derive(Debug, Component, PartialEq)]
-#[storage(VecStorage)]
+#[derive(Debug, PartialEq, Component)]
+#[storage(DenseVecStorage)]
 pub struct Position {
 	pub x: i32,
 	pub y: i32,
@@ -123,11 +123,11 @@ impl CycleAnimation {
 #[storage(VecStorage)]
 pub struct ColorLerp {
 	pub current_color: Color,
-	pub current_value : f32,
+	pub current_brightness : f32,
 	color_a: Color,
-	color_a_value : f32,
+	color_a_brightness : f32,
 	color_b: Color,
-	color_b_value : f32,
+	color_b_brightness : f32,
 	time_to_step: f64,
 	pub step: f64,
 	step_accumulator : f64,
@@ -143,11 +143,11 @@ impl ColorLerp {
 
 		ColorLerp {
 			current_color: color_a,
-			current_value : color_a.hsv().2,
+			current_brightness : color_a.hsv().2,
 			color_a: color_a,
-			color_a_value : color_a.hsv().2,
+			color_a_brightness : color_a.hsv().2,
 			color_b: color_b,
-			color_b_value : color_b.hsv().2,
+			color_b_brightness : color_b.hsv().2,
 			time_to_step: time_to_step,
 			step: 0.1,
 			step_accumulator: 0.0,
@@ -185,8 +185,8 @@ impl ColorLerp {
 	pub fn lerp_value (&mut self, delta : f64) {
 		self.accumulator += delta;
 		if self.accumulator >= self.time_to_step {
-			let v = self.interpolate_value(self.color_a_value as f64, self.color_b_value as f64);
-			self.current_value = v as f32;
+			let v = self.interpolate_value(self.color_a_brightness as f64, self.color_b_brightness as f64);
+			self.current_brightness = v as f32;
 			if self.add_step && self.step_accumulator < 1.0 {
 				self.step_accumulator += self.step;
 				if self.step_accumulator >= 1.0 {
@@ -214,7 +214,7 @@ impl ColorLerp {
 
 	fn reset (&mut self) {
 		self.current_color = self.color_a;
-		self.current_value = self.color_a_value;
+		self.current_brightness = self.color_a_brightness;
 		self.step_accumulator = 0.0;
 		self.accumulator = 0.0;
 	}
@@ -223,56 +223,29 @@ impl ColorLerp {
 
 #[derive(Component)]
 #[storage(VecStorage)]
-pub struct LightMask {
-	pub light_list : Vec<(u32, i32, i32)>,
-	pub color : Color,
-	pub position : (i32,i32),
-}
-
-impl LightMask {
-	pub fn new () -> Self {
-		use tcod::colors;
-
-		LightMask {
-			light_list : Vec::new(),
-			color: colors::WHITE,
-			position : (0,0),
-		}
-	}
-
-	pub fn is_currently_lit_by (&self, light_entity_id : u32, light_position : (i32,i32)) -> bool {
-		return self.light_list.contains(&(light_entity_id, light_position.0, light_position.1));
-	}
-
-	pub fn get_light (&self, light_entity_id : u32) -> (i32,i32) {
-		for light in &self.light_list {
-			if light.0 == light_entity_id {
-				return (light.1, light.2);
-			}
-		}
-		return (0,0);
-	}
-}
+pub struct LightMask;
 
 #[derive(Component)]
-#[storage(VecStorage)]
+#[storage(DenseVecStorage)]
 pub struct Light {
 	pub radius : i32,
 	pub position : (i32,i32),
+	pub color : Color,
 }
 
 impl Light {
-	pub fn new (r: i32) -> Self {
+	pub fn new (r: i32, c : Color) -> Self {
 		Light {
 			radius : r,
 			position : (0,0),
+			color : c,
 		}
 	}
 
 	/// Returns a value from 0.0 to 1.0 for attenuation. 1.0 being completely light, 0.0 being completely dark. 
-	pub fn get_attenuation_from_distance (&self, dist: f64) -> f64 {
+	pub fn get_attenuation (&self, distance_from_light: f64) -> f64 {
 		let a : f64 = 0.0;
-		let b : f64 = 1.0 - (dist * dist) / (self.radius * self.radius) as f64;
+		let b : f64 = 1.0 - (distance_from_light * distance_from_light) / (self.radius * self.radius) as f64;
 		let mut attenuation = a.max(b);
 		attenuation *= attenuation;
 		return attenuation;
