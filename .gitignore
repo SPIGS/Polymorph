@@ -1,6 +1,6 @@
 /target
 **/*.rs.bk
-*.log
+polymorph.log
 config.toml
 .vscode/
 screenshots/
