@@ -1,230 +1,92 @@
-use specs::{ReadStorage, WriteStorage, System, Read, Entities, Write};
+use specs::{System, ReadStorage, WriteStorage, Read, Entities};
+use bracket_lib::prelude::VirtualKeyCode;
+use crate::components::basic::*;
+use crate::components::tag::PlayerTag;
+use crate::state::CurrentInput;
+use crate::raw::*;
 
-use tcod::colors;
-use tcod::map::Map as TcodMap;
-use tcod::map::FovAlgorithm;
-use tcod::input::Key;
-use tcod::input::KeyCode;
+pub struct PickUpSystem;
 
-use crate::components::basic::{Position, Character, CycleAnimation, Description, Actor, Light};
-use crate::components::tags::{PlayerTag, LookCursorTag, TileTag};
+impl <'a> System <'a> for PickUpSystem {
+    type SystemData = (
+        ReadStorage <'a, Position>,
+        ReadStorage <'a, ItemWrapper>,
+        ReadStorage <'a, PlayerTag>,
+        ReadStorage <'a, Currency>,
+        WriteStorage <'a, Inventory>,
+        Read <'a, CurrentInput>,
+        Entities<'a>
+    );
 
-use crate::systems::actor::ActorAction;
+    fn run (&mut self, (positions, item_wrappers, player_tag, currencies, mut inventory, current_input, entities) : Self::SystemData) {
+        use specs::Join;
 
-use crate::state::{CurrentWorldAction, WorldAction};
-use crate::systems::level::ExitPosition;
+        match current_input.key {
+            Some(VirtualKeyCode::G) => {
+                
+                //get player coords
+                let mut player_x = 0;
+                let mut player_y = 0;
+                for (_player, position) in (&player_tag, &positions).join() {
+                    player_x = position.x;
+                    player_y = position.y;
+                }
 
-use crate::systems::light::{StaticLightMap, VisionMap, TransparencyMap, DynamicLightMap};
+                //try to get the item data
+                let mut item_data : Option<ItemRaw> = Option::None;
+                let mut currency_amt = 0;
+                for (position, item_wrapper, e) in (&positions, &item_wrappers, &entities).join() {
+                    if player_x == position.x && player_y == position.y {
+                        //get the item wrapper data
+                        item_data = Option::from(item_wrapper.item_data.clone());
+                        
+                        //if it's a currency get its amount too
+                        let value_option = currencies.get(e);
+                        match value_option {
+                            Some(currency) => {
+                                currency_amt = currency.amt;
+                            },
+                            None => {}
+                        }
 
+                        // delete the entity
+                        let delete_result = entities.delete(e);
+                        match delete_result {
+                            Ok(_t) => {
+                                info!("Picked up item \"{}\" at position {},{}", item_wrapper.item_data.name, position.x, position.y);
+                            },
+                            Err(e) => {
+                                error!("{}", e);
+                                error!("Error deleting item \"{}\" entity on pick up at postion {}, {}", item_wrapper.item_data.name, position.x, position.y);
+                            },
+                        }
+                    }
+                }
 
-#[derive(Default)]
-pub struct CurrentInput (pub Option<Key>);
+                //if there is item data do something with it
+                match item_data {
+                    Some(item_raw) => {
+                        // if the item is a currency add it to the total currency, else add it to the wallet
+                        match item_raw.item_type.as_str() {
+                            "currency" => {
+                                 for (_player, inventory) in (&player_tag, &mut inventory).join() {
+                                    inventory.money += item_raw.value * currency_amt as f32;
+                                }
+                            },
+                            _ => {
+                                 for (_player, inventory) in (&player_tag, &mut inventory).join() {
+                                    inventory.add_item(item_raw.clone());
+                                }
+                            },
+                        }
 
-pub struct PlayerControlSystem {
-	pub is_looking: bool,
-}
-
-impl<'a> System<'a> for PlayerControlSystem {
-
-	type SystemData = (
-			WriteStorage<'a, Position>, 
-			WriteStorage<'a, Character>,
-			WriteStorage<'a, Actor>,
-			WriteStorage<'a, CycleAnimation>,
-			ReadStorage<'a, Description>,
-			ReadStorage<'a, PlayerTag>,
-			ReadStorage<'a, TileTag>,
-			WriteStorage<'a, LookCursorTag>,
-			Read<'a, CurrentInput>,
-			Read<'a, ExitPosition>,
-			Write<'a, CurrentWorldAction>,
-			Entities<'a>,
-		);
-
-	fn run (&mut self, (mut positions, mut characters, mut actors, mut cycle_animations, descriptions, 
-						player_tags, tile_tags, mut look_cursor, current_input, exit_position, mut current_world_action, entities): Self::SystemData) {
-		use specs::Join;
-
-		if !self.is_looking {
-			// get normal player input
-			for (position, actor, _player_tag) in (&positions, &mut actors, &player_tags).join() {
-				match current_input.0 {
-					// arrow keys
-					Some(Key{code: KeyCode::Up, ..}) => {actor.action = ActorAction::ActionMoveUp},
-					Some(Key{code: KeyCode::Down, ..}) => {actor.action = ActorAction::ActionMoveDown},
-					Some(Key{code: KeyCode::Left, ..}) => {actor.action = ActorAction::ActionMoveLeft},
-					Some(Key{code: KeyCode::Right, ..}) => {actor.action = ActorAction::ActionMoveRight},
-
-					// numpad keys
-					Some(Key{code: KeyCode::NumPad8, ..}) => {actor.action = ActorAction::ActionMoveUp},
-					Some(Key{code: KeyCode::NumPad2, ..}) => {actor.action = ActorAction::ActionMoveDown},
-					Some(Key{code: KeyCode::NumPad4, ..}) => {actor.action = ActorAction::ActionMoveLeft},
-					Some(Key{code: KeyCode::NumPad6, ..}) => {actor.action = ActorAction::ActionMoveRight},
-					Some(Key{code: KeyCode::NumPad7, ..}) => {actor.action = ActorAction::ActionMoveUpLeft},
-					Some(Key{code: KeyCode::NumPad9, ..}) => {actor.action = ActorAction::ActionMoveUpRight},
-					Some(Key{code: KeyCode::NumPad1, ..}) => {actor.action = ActorAction::ActionMoveDownLeft},
-					Some(Key{code: KeyCode::NumPad3, ..}) => {actor.action = ActorAction::ActionMoveDownRight},
-					
-
-					Some(Key{code: _, printable: 'l', ..}) => {
-						self.is_looking = true;
-						actor.action = ActorAction::WaitForInput;
-					},
-
-					Some(Key{code: _, printable: '.', shift: true, ..}) => {
-						let exit_point = exit_position.0;
-						if position.x == exit_point.0 && position.y == exit_point.1 {
-							current_world_action.0 = WorldAction::GoToNewLevel;
-							actor.action = ActorAction::WaitForInput;
-						} else {
-							actor.action = ActorAction::WaitForInput;
-						}
-					},
-					_ => {actor.action = ActorAction::WaitForInput},
-				}	
-			}
-
-			if self.is_looking {
-
-				let mut player_x = 0;
-				let mut player_y = 0;
-				// have the cursor's starting position be the players current position.
-				for (position, _player_tag) in (&positions, &player_tags).join() {
-					player_x = position.x;
-					player_y = position.y;
-				}
-				
-				// create the cursor entity
-				let cursor = entities.create();
-				let _ = look_cursor.insert(cursor, LookCursorTag);
-				let _ = positions.insert(cursor, Position::new(player_x, player_y));
-				let _ = characters.insert(cursor, Character::new('&', colors::YELLOW, colors::BLACK));
-				let _ = cycle_animations.insert(cursor, CycleAnimation::new(5.0, vec!['X', ' ']));
-			}
-
-		} else {
-
-			let mut show_description = false;
-			let mut look_position = (0,0);
-			for (position, _look_cursor_tag, e) in (&mut positions, &look_cursor, &entities).join() {
-				// get the input for the cursor
-				match current_input.0 {
-					// arrow keys
-					Some(Key{code: KeyCode::Up, ..}) => {position.y -= 1},
-					Some(Key{code: KeyCode::Down, ..}) => {position.y += 1},
-					Some(Key{code: KeyCode::Left, ..}) => {position.x -= 1},
-					Some(Key{code: KeyCode::Right, ..}) => {position.x += 1},
-
-					// numpad keys
-					Some(Key{code: KeyCode::NumPad8, ..}) => {position.y -= 1},
-					Some(Key{code: KeyCode::NumPad2, ..}) => {position.y += 1},
-					Some(Key{code: KeyCode::NumPad4, ..}) => {position.x -= 1},
-					Some(Key{code: KeyCode::NumPad6, ..}) => {position.x += 1},
-					Some(Key{code: KeyCode::NumPad7, ..}) => {position.y -= 1; position.x -= 1},
-					Some(Key{code: KeyCode::NumPad9, ..}) => {position.y -= 1; position.x += 1},
-					Some(Key{code: KeyCode::NumPad1, ..}) => {position.y += 1; position.x -= 1},
-					Some(Key{code: KeyCode::NumPad3, ..}) => {position.y += 1; position.x += 1},
-
-					// escape - exits look mode
-					Some(Key{code: KeyCode::Escape, ..}) => {
-						self.is_looking = false;
-						let _ = entities.delete(e);
-					},
-					// enter - shows name of tile and descirption in new state.
-					Some(Key{code: KeyCode::Enter, ..}) => {
-						show_description = true;
-						look_position = (position.x, position.y);
-					},
-					_ => {},
-				}
-			}
-
-			if show_description {
-				let mut not_tile_found = false;
-				//First iterate over the non tile entities on the cursor position. The player would want to look at that instead of the ground.
-				for (position, _look_cursor_tag, description, character, _tile_tag) in (&positions, !&look_cursor, &descriptions, &characters, !&tile_tags).join() {
-					if position.x == look_position.0 && position.y == look_position.1 {
-						current_world_action.0 = WorldAction::PushDescriptionState(description.name.clone(), description.description.clone(), character.default_foreground);
-						
-						// set not_tile_found to true because we found an entity that wasn't a tile and we dont want to push two states to the stack.
-						not_tile_found = true;
-					}
-				}
-
-				// if we did not find a non-tile entity we want to get the description of the map tile instead.
-				if !not_tile_found {
-					for (position, _look_cursor_tag, description, character) in (&positions, !&look_cursor, &descriptions, &characters).join() {
-						if position.x == look_position.0 && position.y == look_position.1 {
-							current_world_action.0 = WorldAction::PushDescriptionState(description.name.clone(), description.description.clone(), character.default_foreground);
-						}
-					}
-				}
-			}
-		}		
-	}
-}
-
-pub struct PlayerVisionSystem {
-	pub known_player_position : (i32, i32),
-}
-
-impl<'a> System<'a> for PlayerVisionSystem {
-
-	type SystemData = (
-		ReadStorage<'a, Position>,
-		ReadStorage<'a, PlayerTag>,
-		ReadStorage<'a, Light>,
-		Read<'a, StaticLightMap>,
-		Read<'a, DynamicLightMap>,
-		Write<'a, VisionMap>,
-		Read <'a, TransparencyMap>
-	);
-
-	fn run (&mut self, (positions, player_tags, lights, static_map, dynamic_map, mut vision_map, transparency_map) : Self::SystemData) {
-		use specs::Join;
-		for (position, light, _player_tag) in (&positions, &lights, &player_tags).join() {
-			if position.x != self.known_player_position.0 || position.y != self.known_player_position.1 {
-				
-				// get width and height and reset vision map
-				let width = vision_map.0.len();
-				let height = vision_map.0[0].len();
-				vision_map.0 = vec![vec![false; height]; width];
-
-				// maek new tcod structure for the map
-				let mut new_vision_map = TcodMap::new(width as i32, height as i32);
-
-				// set the transparency
-				for x in 0..width as i32 {
-					for y in 0..height as i32 {
-						new_vision_map.set(x,y, transparency_map.0[x as usize][y as usize], false);
-					}
-				}
-				
-				//compute the fov at double the radius so as to include possible light sources in the distance. 
-				new_vision_map.compute_fov(position.x as i32, position.y as i32, light.radius * 6, true, FovAlgorithm::Shadow);
-				
-				// set the tiles in the players actual visiual radius to visible
-				for x in -light.radius..light.radius {
-					for y in -light.radius..light.radius {
-						if x*x + y*y <= light.radius*light.radius {
-							let light_x = position.x + x;
-							let light_y = position.y + y;
-							if light_x >= 0 && light_x < width as i32 && light_y >= 0 && light_y < height as i32 {
-								vision_map.0[light_x as usize][light_y as usize] = new_vision_map.is_in_fov(light_x, light_y);
-							} 
-						}
-					}
-				}
-				
-				// set the light sources in the distance that are within line of sight to be visible 
-				for x in 0..width {
-					for y in 0..height {
-						if (static_map.0[x][y].alpha > 0.0 || dynamic_map.0[x][y].alpha > 0.0) && new_vision_map.is_in_fov(x as i32, y as i32) {
-							vision_map.0[x][y] = true;
-						}
-					}
-				}
-			}
-		}
-	}
-}
+                       
+                    },
+                    None => {},
+                }
+            },
+            _ => {},
+        }
+        
+    }
+} 

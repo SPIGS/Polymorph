@@ -1,14 +1,21 @@
 [package]
-name = "roguelike"
+name = "rltkTest"
 version = "0.1.0"
-authors = ["Parker Spielvogel <paspielvogel@gmail.com>"]
+authors = ["SPIGS <paspielvogel@gmail.com>"]
 edition = "2018"
 
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
 [dependencies]
-tcod = "0.15.0"
-specs = "0.14.3"
-specs-derive = "0.4.0"
-rand = "0.5.0"
-sha-1 = "0.8.1"
-sha2 = "0.8.0"
-time = "0.1.42"
+glutin = "0.23.0"
+lazy_static = "1.4.0"
+serde_json = "1.0"
+bracket-lib = "0.8.1"
+simplelog = "0.7.4"
+log = "0.4.8"
+toml = "0.5.6"
+specs-derive = "0.4.1"
+specs = "0.16.1"
+object-pool = "0.4"
+serde = { version = "1.0.104", features = ["derive"] }
+

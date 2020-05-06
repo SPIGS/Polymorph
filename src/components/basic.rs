@@ -1,254 +1,165 @@
-use tcod::colors::Color;
-
 use specs::{Component, VecStorage, DenseVecStorage};
+use bracket_lib::prelude::RGB;
 
-use crate::systems::actor::*;
+use std::collections::HashMap;
+
+use crate::raw::ItemRaw;
+use crate::raw::{RAW};
 
 #[derive(Debug, PartialEq, Component)]
 #[storage(DenseVecStorage)]
 pub struct Position {
-	pub x: i32,
-	pub y: i32,
+    pub x : i32,
+    pub y : i32,
 }
 
 impl Position {
-	pub fn new (x: i32, y: i32) -> Self {
-		Position {
-			x: x,
-			y: y,
-		}
-	}
+    pub fn new (x : i32, y : i32)-> Self {
+        Position {
+            x : x,
+            y : y,
+        }
+    }
 }
 
-#[derive(Component)]
+#[derive(Component, Debug)]
+#[storage(DenseVecStorage)]
+pub struct Renderable {
+    pub glyph: u16,
+    pub fg : RGB,
+    pub bg : RGB,
+    pub shadeless : bool,
+    pub shading : (f32, f32, f32),
+}
+
+impl Renderable {
+    pub fn new (glyph: u16, foreground_color : RGB, background_color : RGB, shadeless : bool) -> Self {
+        Renderable {
+            glyph : glyph,
+            fg : foreground_color,
+            bg : background_color,
+            shadeless : shadeless,
+            shading : (1.0, 1.0, 1.0),
+        }
+    }
+
+    pub fn new_from_char(glyph : char, foreground_color : RGB, background_color : RGB, shadeless : bool) -> Self{
+        Renderable {
+            glyph : glyph as u16,
+            fg : foreground_color,
+            bg : background_color,
+            shadeless : shadeless,
+            shading : (1.0, 1.0, 1.0),
+        }
+    }
+
+    pub fn get_shaded_foreground (&self) -> RGB {
+        let obj_r = self.fg.r;
+        let obj_g = self.fg.g;
+        let obj_b = self.fg.b;
+
+        return RGB::from_f32(obj_r * self.shading.0, obj_g * self.shading.1, obj_b * self.shading.2)
+    }
+
+    pub fn get_shaded_background (&self) -> RGB {
+        let obj_r = self.bg.r;
+        let obj_g = self.bg.g;
+        let obj_b = self.bg.b;
+
+        return RGB::from_f32(obj_r * self.shading.0, obj_g * self.shading.1, obj_b * self.shading.2)
+    }
+}
+
+#[derive(Component, Debug)]
+#[storage(VecStorage)]
+pub struct Inventory {
+    pub items : HashMap<u32, u32>,
+    pub money : f32,
+    size : usize,
+}
+
+impl Inventory {
+    pub fn new () -> Self {
+        Inventory {
+            items : HashMap::new(),
+            money : 0.0,
+            size : 0,
+        }
+    }
+
+    pub fn add_item (&mut self, item : ItemRaw) {
+        let name = item.name.clone();
+        let id = RAW.lock().unwrap().get_item_id(name);
+        if self.items.contains_key(&id) {
+            self.items.entry(id).and_modify(|amt| *amt += 1);
+        } else {
+            self.items.insert(id, 1);
+        }
+        self.size += 1;
+    }
+    pub fn get_size (&self) -> usize {
+        return self.size;
+    }
+}
+
+#[derive(Component, Debug)]
+#[storage(VecStorage)]
+pub struct ItemWrapper {
+   pub item_data : ItemRaw,
+}
+
+impl ItemWrapper{
+    pub fn new (data : ItemRaw) -> Self {
+        ItemWrapper {
+            item_data : data,
+        }
+    }
+}
+
+#[derive(Component, Debug)]
+#[storage(VecStorage)]
+pub struct Currency {
+    pub amt : u32,
+}
+
+#[derive(Component, Debug)]
 #[storage(VecStorage)]
 pub struct Actor {
-	pub action: ActorAction,
-	pub has_taken_turn: bool,
-	pub on_turn: bool,
+    pub strength : u8,
+    pub dexterity : u8,
+    pub constitution : u8,
+    pub wisdom : u8,
+    pub intelligence : u8,
+    pub max_health : i32,
+    pub current_health : i32,
 }
 
 impl Actor {
-	pub fn new (starting_action: ActorAction) -> Self {
-		Actor {
-			action: starting_action,
-			has_taken_turn: false,
-			on_turn: false,
-		}
-	}
+    pub fn new () -> Self {
+        Actor {
+            strength : 10,
+            dexterity : 10,
+            constitution : 10,
+            wisdom : 10,
+            intelligence : 10,
+            max_health: 100,
+            current_health : 100,
+        }
+    }
 }
 
-#[derive(Component)]
+#[derive(Component, Debug)]
 #[storage(VecStorage)]
-pub struct DrunkWalkAI; 
-
-#[derive(Debug, Component)]
-#[storage(VecStorage)]
-pub struct Character {
-	pub glyph: char,
-	pub default_foreground: Color,
-	pub default_background: Color,
-	pub current_foreground: Color,
-	pub current_background: Color,
-}
-
-impl Character {
-	pub fn new (glyph: char, foreground: Color, background: Color) -> Self {
-		Character {
-			glyph: glyph,
-			default_foreground: foreground,
-			default_background: background,
-			current_foreground: foreground,
-			current_background: background,
-		}
-	}
-}
-
-#[derive(Debug, Component)]
-#[storage(VecStorage)]
-pub struct Description {
-	pub name: String,
-	pub description: String,
-}
-
-impl Description {
-	pub fn new (name: String, description: String) -> Self {
-
-		Description {
-			name: name,
-			description: description,
-		}
-	}
-}
-
-#[derive(Component)]
-#[storage(VecStorage)]
-pub struct CycleAnimation {
-	pub rate_per_second: f64,
-	pub current_frame: usize,
-	pub frames: Vec<char>,
-	time_to_change: f64,
-	accumulator: f64,
-}
-
-impl CycleAnimation {
-
-	pub fn new (rate_per_second: f64, frames: Vec<char>) -> CycleAnimation {
-
-		let time_to_change = 100.0 / rate_per_second;
-
-		CycleAnimation {
-			rate_per_second: rate_per_second,
-			current_frame: 0,
-			frames: frames,
-			time_to_change: time_to_change,
-			accumulator: 0.0,
-		}
-	}
-	
-	pub fn cycle (&mut self, delta: &f64) {
-		self.accumulator += delta;
-		if self.accumulator >= self.time_to_change {
-			
-			self.current_frame += 1;
-			if self.current_frame >= self.frames.len() {
-				self.current_frame = 0;
-			}
-			self.accumulator = 0.0;
-		}
-	}
-}
-
-#[derive(Component)]
-#[storage(VecStorage)]
-pub struct ColorLerp {
-	pub current_color: Color,
-	pub current_brightness : f32,
-	color_a: Color,
-	color_a_brightness : f32,
-	color_b: Color,
-	color_b_brightness : f32,
-	time_to_step: f64,
-	pub step: f64,
-	step_accumulator : f64,
-	accumulator: f64,
-	add_step: bool,
-}
-
-impl ColorLerp {
-
-	pub fn new (color_a: Color, color_b: Color, rate: f64, offset: f64) -> ColorLerp {
-
-		let time_to_step = 100.0 / rate;
-
-		ColorLerp {
-			current_color: color_a,
-			current_brightness : color_a.hsv().2,
-			color_a: color_a,
-			color_a_brightness : color_a.hsv().2,
-			color_b: color_b,
-			color_b_brightness : color_b.hsv().2,
-			time_to_step: time_to_step,
-			step: 0.1,
-			step_accumulator: 0.0,
-			accumulator: offset,
-			add_step: true,
-		}
-	}
-
-	pub fn lerp_hue (&mut self, delta: f64) {
-		self.accumulator += delta;
-		if self.accumulator >= self.time_to_step {
-
-			let r = self.interpolate_channel(self.color_a.r as f64, self.color_b.r as f64);
-			let g = self.interpolate_channel(self.color_a.g as f64, self.color_b.g as f64);
-			let b = self.interpolate_channel(self.color_a.b as f64, self.color_b.b as f64);
-			self.current_color = Color::new(r, g, b);
-
-			if self.add_step && self.step_accumulator < 1.0 {
-				self.step_accumulator += self.step;
-				if self.step_accumulator >= 1.0 {
-					self.step_accumulator = 1.0;
-					self.add_step = !self.add_step;
-				}
-			} else if !self.add_step && self.step_accumulator > 0.0 {
-				self.step_accumulator -= self.step;
-				if self.step_accumulator <= 0.0 {
-					self.step_accumulator = 0.0;
-					self.add_step = !self.add_step;
-				}
-			}
-			self.accumulator = 0.0;
-		}
-	}
-
-	pub fn lerp_value (&mut self, delta : f64) {
-		self.accumulator += delta;
-		if self.accumulator >= self.time_to_step {
-			let v = self.interpolate_value(self.color_a_brightness as f64, self.color_b_brightness as f64);
-			self.current_brightness = v as f32;
-			if self.add_step && self.step_accumulator < 1.0 {
-				self.step_accumulator += self.step;
-				if self.step_accumulator >= 1.0 {
-					self.step_accumulator = 1.0;
-					self.add_step = !self.add_step;
-				}
-			} else if !self.add_step && self.step_accumulator > 0.0 {
-				self.step_accumulator -= self.step;
-				if self.step_accumulator <= 0.0 {
-					self.step_accumulator = 0.0;
-					self.add_step = !self.add_step;
-				}
-			}
-			self.accumulator = 0.0;
-		}
-	}
-
-	fn interpolate_channel (&mut self, channel_a: f64, channel_b: f64) -> u8 {
-		return ((channel_b - channel_a) * self.step_accumulator + channel_a) as u8; 
-	}
-
-	fn interpolate_value (&mut self, channel_a: f64, channel_b: f64) -> f64 {
-		return (channel_b - channel_a) * self.step_accumulator + channel_a; 
-	}
-
-	fn reset (&mut self) {
-		self.current_color = self.color_a;
-		self.current_brightness = self.color_a_brightness;
-		self.step_accumulator = 0.0;
-		self.accumulator = 0.0;
-	}
-
-}
-
-#[derive(Component)]
-#[storage(VecStorage)]
-pub struct LightMask;
-
-#[derive(Component)]
-#[storage(DenseVecStorage)]
 pub struct Light {
-	pub radius : i32,
-	pub position : (i32,i32),
-	pub color : Color,
+    pub radius : u32,
+    pub intensity : f32,
 }
 
 impl Light {
-	pub fn new (r: i32, c : Color) -> Self {
-		Light {
-			radius : r,
-			position : (0,0),
-			color : c,
-		}
-	}
-
-	/// Returns a value from 0.0 to 1.0 for attenuation. 1.0 being completely light, 0.0 being completely dark. 
-	pub fn get_attenuation (&self, distance_from_light: f64) -> f64 {
-		let a : f64 = 0.0;
-		let b : f64 = 1.0 - (distance_from_light * distance_from_light) / (self.radius * self.radius) as f64;
-		let mut attenuation = a.max(b);
-		attenuation *= attenuation;
-		return attenuation;
-	}
-
+    pub fn new (radius : u32, intensity : f32) -> Self {
+        Light {
+            radius : radius,
+            intensity : intensity,
+        }
+    }
 }

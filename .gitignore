@@ -1,2 +1,7 @@
 /target
 **/*.rs.bk
+Cargo.lock
+polymorph.log
+config.toml
+.vscode/
+screenshots/

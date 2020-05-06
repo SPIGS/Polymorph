@@ -1,85 +1,32 @@
-use specs::{ReadStorage, WriteStorage, System};
+use specs::{System, Read, ReadStorage, WriteStorage};
+use bracket_lib::prelude::VirtualKeyCode;
+use crate::components::basic::{Position, Actor};
+use crate::components::tag::PlayerTag;
+use crate::state::CurrentInput;
 
-use crate::components::basic::{Position, Actor, DrunkWalkAI};
+pub struct PlayerMoveSystem;
 
-pub enum ActorAction {
-	ActionWait,
-	ActionMoveLeft,
-	ActionMoveRight,
-	ActionMoveUp,
-	ActionMoveDown,
-	ActionMoveUpLeft,
-	ActionMoveUpRight,
-	ActionMoveDownLeft,
-	ActionMoveDownRight,
-	ActionNoTime,
-	WaitForInput, 	
-}
+impl <'a> System <'a> for PlayerMoveSystem {
+    type SystemData = (
+        ReadStorage <'a, PlayerTag>,
+        WriteStorage <'a, Position>,
+        WriteStorage <'a, Actor>,
+        Read <'a, CurrentInput>,
+    );
 
-pub struct ActorSystem{
-	_actors: Vec<(Position, Actor)>
-}
+    fn run (&mut self, (playertag, mut positions, mut actors, current_input) : Self::SystemData) {
+        use specs::Join;
+            
+        for (_playertag, position) in (&playertag, &mut positions).join() {
+            match current_input.key {
+                Some(VirtualKeyCode::Up) => {position.y -= 1;},
+                Some(VirtualKeyCode::Down) => {position.y += 1},
+                Some(VirtualKeyCode::Left) => {position.x -= 1},
+                Some(VirtualKeyCode::Right) => {position.x += 1},
+                None => {},
+                _ => {},
+            }
+        }
+    }
 
-impl ActorSystem {
-	pub fn new () -> Self {
-		ActorSystem {
-			_actors: Vec::new(),
-		}
-	}
-}
-
-impl<'a> System<'a> for ActorSystem {
-
-	type SystemData = (
-			WriteStorage<'a, Position>,
-			ReadStorage<'a, Actor>,
-		);
-
-	fn run (&mut self, (mut positions, actors): Self::SystemData) {
-		use specs::Join;
-		for (position, actor) in (&mut positions, &actors).join() {
-			match actor.action {
-				ActorAction::ActionMoveLeft => {position.x -= 1;},
-				ActorAction::ActionMoveRight => {position.x += 1},
-				ActorAction::ActionMoveUp => {position.y -= 1},
-				ActorAction::ActionMoveDown => {position.y += 1},
-				ActorAction::ActionMoveUpLeft => {position.y -=1; position.x -= 1},
-				ActorAction::ActionMoveUpRight => {position.y -=1; position.x += 1},
-				ActorAction::ActionMoveDownLeft => {position.y +=1; position.x -= 1},
-				ActorAction::ActionMoveDownRight => {position.y +=1; position.x += 1},
-				_ => {},
-			}
-		}
-	}
-}
-
-//TODO
-pub struct AISystem {
-
-}
-//TODO
-impl<'a> System<'a> for AISystem {
-	type SystemData = (
-			WriteStorage<'a, Actor>,
-			ReadStorage<'a, DrunkWalkAI>,
-		);
-
-	fn run (&mut self, (mut actors, _drunkwalk_ai): Self::SystemData) {
-		use specs::Join;
-		use rand::Rng;
-		for (actor, _drunk) in (&mut actors, &_drunkwalk_ai).join() {
-			let mut rng = rand::thread_rng();
-			let direction = rng.gen_range(0,4);
-
-			if direction == 0 {
-				actor.action = ActorAction::ActionMoveUp;
-			} else if direction == 1 {
-				actor.action = ActorAction::ActionMoveDown;
-			} else if direction == 2 {
-				actor.action = ActorAction::ActionMoveLeft;
-			} else if direction == 3 {
-				actor.action = ActorAction::ActionMoveRight;
-			}
-		}
-	}
 }

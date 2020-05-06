@@ -1,2 +1,3 @@
 pub mod basic;
-pub mod tags;
+pub mod gui;
+pub mod tag;

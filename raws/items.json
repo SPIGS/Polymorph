@@ -1,0 +1,64 @@
+{
+    "items" : [
+        {
+            "item_type" : "potion",
+            "name" : "Health Potion",
+            "weight" : 0.50,
+            "rarity" : 0.25,
+            "value" : 50.0,
+            "potion" : {
+                "effects" : [
+                    "heal"
+                ]
+            }
+        },
+        {
+            "item_type" : "treasure",
+            "name" : "Diamond",
+            "weight" : 0.10,
+            "rarity" : 0.05,
+            "value" : 10000.0,
+            "renderable" : {
+                "character_code" : 4,
+                "fg" : "#85c1e9",
+                "bg" : "#000000"
+            }
+        },
+        {
+            "item_type": "currency",
+            "name": "Gold",
+            "weight": 0.0,
+            "rarity": 0.25,
+            "value": 1.00,
+            "renderable": {
+                "character_code" : 42,
+                "fg" : "#eeca00",
+                "bg" : "#000000"
+            }
+        },
+        {
+            "item_type": "currency",
+            "name": "Copper",
+            "weight": 0.0,
+            "rarity": 0.25,
+            "value": 0.25,
+            "renderable": {
+                "character_code": 42,
+                "fg": "#96500a",
+                "bg": "#000000"
+            }
+        },
+        {
+            "item_type": "currency",
+            "name": "Silver",
+            "weight": 0.0,
+            "rarity": 0.25,
+            "value": 0.50,
+            "renderable": {
+                "character_code": 42,
+                "fg": "#8c8c8c",
+                "bg": "#000000"
+            }
+        }
+    ]
+}

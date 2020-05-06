@@ -1,5 +1,5 @@
 pub mod render;
-pub mod player;
 pub mod actor;
-pub mod level;
-pub mod light;
+pub mod player;
+pub mod gui;
+pub mod lighting;

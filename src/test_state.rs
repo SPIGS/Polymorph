@@ -1,181 +1,184 @@
-use tcod::console::*;
-use tcod::input::Key;
-use tcod::colors;
+use bracket_lib::prelude::BTerm;
+use bracket_lib::prelude::VirtualKeyCode;
+use bracket_lib::prelude::DrawBatch;
+use bracket_lib::prelude::render_draw_buffer;
+use bracket_lib::prelude::RGB;
+use bracket_lib::prelude::ColorPair;
+use bracket_lib::prelude::Rect;
+use bracket_lib::prelude::Point;
 
-use specs::{Dispatcher, World, Builder};
+//use specs::{Dispatcher, World, Builder};
+use specs::prelude::{World, WorldExt, Dispatcher, Builder};
 
-use crate::state::{State, StateAction, WorldAction, CurrentWorldAction};
-use crate::application::{Context, DeltaTime};
+use crate::state::{StateAction, State, CurrentInput, DeltaTime};
+use crate::components::basic::{Position, Renderable, Inventory, Currency, Actor, Light};
+use crate::components::tag::PlayerTag;
+use crate::components::gui::{PlayerCard, Panel, Justification};
 
-use crate::description_state::DescriptionState;
-use crate::level_transistion_state::LevelTransition;
+use crate::systems::render::{RenderSystem, GUIRenderSystem};
+use crate::systems::actor::PlayerMoveSystem;
+use crate::systems::player::PickUpSystem;
+use crate::systems::gui::GUIUpdate;
+use crate::systems::lighting::LightingSystem;
+use crate::systems::lighting::lightmask::LightMask;
 
-use crate::components::basic::{Position, Character, CycleAnimation, ColorLerp, Description, Actor, Light, LightMask};
-use crate::components::tags::{PlayerTag, TileTag, LookCursorTag, DirtyFlag, StaticFlag};
-
-use crate::systems::render;
-use crate::systems::light::{StaticLightMap, TransparencyMap, VisionMap};
-use crate::systems::player::{PlayerControlSystem, CurrentInput, PlayerVisionSystem};
-use crate::systems::actor::{ActorAction, ActorSystem};
-use crate::systems::level::{SpawnPosition, ExitPosition, ClearLevelSystem, NewLevelSystem};
-use crate::systems::light::{DynamicLightSystem, BakedLightingSystem, DynamicLightMap, LightCombine};
-
-pub struct TestState <'a, 'b> {
-	world: World,
-	seed: String,
-	current_level: i32,
-	update_dispatcher: Dispatcher<'a, 'b>,
-	new_level_dispatcher: Dispatcher<'a, 'b>,
-	bake_lights_dispatcher : Dispatcher<'a, 'b>,
-	offscreen: Offscreen,
+pub struct TestState <'a, 'b>{
+    world : World,
+    update_dispatcher : Dispatcher<'a, 'b>,
+    render_dispatcher : Dispatcher<'a, 'b>,
+    gui_render_dispatcher  : Dispatcher<'a, 'b>,
+    screen_size : (u32,u32),
+    mask : Vec<f64>,
 }
+
+const mask_size : usize = 20;
 
 impl <'a, 'b> TestState <'a, 'b> {
+    pub fn new (ctx : &mut BTerm) -> Self {
+        let mut world = World::new();
+        world.register::<Position>();
+        world.register::<Renderable>();
+        world.register::<Inventory>();
+        world.register::<Currency>();
+        world.register::<Actor>();
+        world.register::<PlayerCard>();
+        world.register::<Panel>();
+        world.register::<Light>();
 
-	pub fn new (ctx: Context) -> TestState <'a, 'b> {
-		// create world and register resources
-		let mut world = World::new();
-		world.register::<Position>();
-		world.register::<Character>();
-		world.register::<Description>();
-		world.register::<Actor>();
-		world.register::<CycleAnimation>();
-		world.register::<ColorLerp>();
-		world.register::<Light>();
-		world.register::<PlayerTag>();
-		world.register::<LookCursorTag>();
-		world.register::<TileTag>();
+        world.insert(DeltaTime(0.0));
+        world.insert(CurrentInput::default());
+        
+        let mut update_dispatcher = specs::DispatcherBuilder::new()
+                .with(PlayerMoveSystem, "move_system", &[])
+                .with(PickUpSystem, "pickup_system", &[])
+                .with(GUIUpdate, "gui_update", &[])
+                .build();
+        update_dispatcher.setup(&mut world);
 
-		world.add_resource(CurrentInput(None));
-		world.add_resource(CurrentWorldAction(WorldAction::default()));
-		world.add_resource(DeltaTime(0.0));
+        let render_system = RenderSystem::new(DrawBatch::new(), ctx.get_char_size());
+        let lighting_system = LightingSystem{};
+        let gui_render_system = GUIRenderSystem::new(DrawBatch::new(), ctx.get_char_size());
 
-		world.add_resource(VisionMap(Vec::default()));
-		world.add_resource(StaticLightMap(Vec::default()));
-		world.add_resource(DynamicLightMap(Vec::default()));
-		world.add_resource(TransparencyMap(Vec::default()));
+        let mut render_dispatcher = specs::DispatcherBuilder::new()
+                .with(lighting_system, "lighting_system", &[])
+                .with(render_system, "render_system", &["lighting_system"])
+                .build();
+        render_dispatcher.setup(&mut world);
 
-		world.add_resource(ExitPosition((0,0)));
-		world.add_resource(SpawnPosition((0,0)));
+        let mut gui_render_dispatcher = specs::DispatcherBuilder::new()
+                .with(gui_render_system, "gui_render_system", &[])
+                .build();
+        gui_render_dispatcher.setup(&mut world);
 
-		let seed = String::from("Test");
-		
-		// make dispatchers
-		//update dispatcher is called every frame and updates the following systems
-		let mut update_dispatcher = specs::DispatcherBuilder::new()
-				.with(PlayerControlSystem {is_looking: false}, "player_controls", &[])
-				.with(ActorSystem::new(), "action_system", &["player_controls"])
-				.with(DynamicLightSystem, "dynamic_light_system", &[])
-				.with(LightCombine, "light_source_combine", &["dynamic_light_system"])
-				.with(render::AnimationSystem, "animation_system", &["dynamic_light_system", "light_source_combine"])
-				.with(PlayerVisionSystem{known_player_position : (0,0)}, "vision_system", &["dynamic_light_system", "light_source_combine"])	
-				.build();
-		update_dispatcher.setup(&mut world.res);
-
-		// new level dispatcher is called whenever a new level needs to be generated.
-		let mut new_level_dispatcher = specs::DispatcherBuilder::new()
-				.with(ClearLevelSystem, "clear_system", &[])
-				.with(NewLevelSystem::new(seed.clone()), "new_level_system", &["clear_system"])
-				.build();
-
-		new_level_dispatcher.setup(&mut world.res);
-
-		//make the dispatcher for baked lighting
-		let mut baked_lights_dispatcher = specs::DispatcherBuilder::new()
-				.with(BakedLightingSystem, "baked_lighting_system", &[])
-				.build();
-
-		baked_lights_dispatcher.setup(&mut world.res);
-		
-		let offscreen = Offscreen::new(ctx.width, ctx.height);
-
-		TestState {
-			world: world,
-			seed: seed.clone(),
-			current_level: 1,
-			update_dispatcher: update_dispatcher,
-			new_level_dispatcher: new_level_dispatcher,
-			bake_lights_dispatcher: baked_lights_dispatcher,
-			offscreen: offscreen,
-		}
-	}
-
+        TestState {
+            world : world,
+            update_dispatcher : update_dispatcher,
+            render_dispatcher : render_dispatcher,
+            gui_render_dispatcher : gui_render_dispatcher,
+            screen_size : ctx.get_char_size(),
+            mask : Vec::new(),
+        }
+    }
 }
 
-impl <'a, 'b> State for TestState <'a, 'b> {
-	
-	fn init (&mut self) {
+impl <'a, 'b> State for TestState <'a ,'b> {
 
-		self.new_level_dispatcher.dispatch(&mut self.world.res);
-		
-		let spawn_position = self.world.read_resource::<SpawnPosition>().0;
+    fn init (&mut self) {
+       self.world.create_entity()
+            .with(Position::new(1, 2))
+            .with(PlayerTag)
+            .with(Inventory::new())
+            .with(Renderable::new(64, RGB::from_f32(1.0, 1.0, 1.0), RGB::from_f32(0.0, 0.0, 0.0), false))
+            .with(Light::new(15, 1.0))
+            .with(Actor::new())
+            .build();
 
-		// player
-		self.world.create_entity()
-			.with(Position::new(spawn_position.0, spawn_position.1))
-			.with(Character::new('@', colors::WHITE, colors::RED))
-			.with(CycleAnimation::new(4.0, vec!['@', '!']))
-			.with(Description::new(String::from("You"), String::from("Damn you ugly")))
-			.with(Light::new(5, colors::WHITE))
-			.with(LightMask)
-			.with(Actor::new(ActorAction::WaitForInput))
-			.with(PlayerTag)
-			.build();
+        for x in 0..80 {
+            for y in 0..40 {
+                self.world.create_entity()
+                    .with(Position::new(x, y))
+                    .with(Renderable::new(46, RGB::from_f32(1.0, 1.0, 1.0), RGB::from_f32(0.0, 0.0, 0.0), false))
+                    .build();
+            }
+        }
 
-		// make light
-		self.world.create_entity()
-			.with(Position::new(50, 50))
-			.with(Character::new('&', colors::YELLOW, colors::BLACK))
-			.with(Light::new(20, colors::WHITE))
-			.with(StaticFlag)
-			.with(DirtyFlag)
-			.build();
+        for x in 20..40 {
+            for y in 10..30 {
+                if x == 20 || y == 10 || y == 30 || x==40{
+                    self.world.create_entity()
+                        .with(Position::new(x, y))
+                        .with(Renderable::new(219, RGB::from_f32(1.0, 0.0, 0.0), RGB::from_f32(0.0, 0.0, 0.0), false))
+                        .build();
+                }
+            }
+        }
 
-		self.bake_lights_dispatcher.dispatch(&mut self.world.res);
-	}
-	
-	fn on_enter (&mut self) {
-		let last_world_action = self.world.read_resource::<CurrentWorldAction>().0.clone();
-		match last_world_action {
-			WorldAction::GoToNewLevel => {
-				self.new_level_dispatcher.dispatch(&mut self.world.res);
-			},
-			_ => {},
-		}
-		self.world.write_resource::<CurrentWorldAction>().0 = WorldAction::NoAction;
-	}
-	
-	fn on_exit (&mut self) {
-		
-	}
+        self.world.create_entity()
+            .with(Position::new(3, 3))
+            .with(Renderable::new(224, RGB::from_f32(1.0, 1.0, 0.0), RGB::from_f32(0.0, 0.0, 0.0), true))
+            .with(Light::new(15, 1.0))
+            .build();
 
-	fn update (&mut self, _ctx: &Context, delta: DeltaTime, input: Option<Key>) -> StateAction {
-		self.world.write_resource::<CurrentInput>().0 = input;
+        let player_card_bounds = Rect::with_size(0, 0, self.screen_size.0/4, self.screen_size.1);
 
-		self.world.write_resource::<DeltaTime>().0 = delta.0;
-		self.update_dispatcher.dispatch(&mut self.world.res);
-		self.world.maintain();
+        self.world.create_entity()
+            .with(Panel::new(player_card_bounds, true, Justification::RIGHT, Option::None))
+            .with(PlayerCard::new())
+            .build();
 
-		match &self.world.read_resource::<CurrentWorldAction>().0 {
-			WorldAction::Exit => {return StateAction::Exit},
-			WorldAction::PushDescriptionState(name, desc, color) => {
-				return StateAction::Push(Box::new(DescriptionState::new(name.clone(), desc.clone(), *color)));
-			},
-			WorldAction::GoToNewLevel => {self.current_level += 1; return StateAction::Push(Box::new(LevelTransition::new(self.current_level)))},
-			WorldAction::NoAction => {return StateAction::NoAction},
-			_ => {return StateAction::NoAction},
-		}
-	}
+        info!("Initialized state");
+    }
 
-	fn render (&mut self, ctx: &Context, window: &mut Root) {
-		// TODO make one render function that calls sub functions for entities and gui elements so that clear() blit() and flush() in one place
-		self.offscreen.clear();
-		render::render(ctx, &mut self.offscreen, window, & self.world);
+    fn on_enter (&mut self) {}
 
-		//? This is placed here for debugging purposes
-		let mut seed_text = String::from("Seed: ");
-		seed_text.push_str(&self.seed);
-		window.print_ex(ctx.width/2, ctx.height-1, BackgroundFlag::None, TextAlignment::Center, seed_text);
+    fn update (&mut self, ctx : &mut BTerm, input : CurrentInput, delta_time : DeltaTime) -> StateAction {
+        {
+        let mut delta = self.world.write_resource::<DeltaTime>();
+        *delta = delta_time;
+        }
+        {
+        let mut current_input = self.world.write_resource::<CurrentInput>();
+        *current_input = input;
+        }
+        self.update_dispatcher.dispatch(&mut self.world);
+        self.world.maintain();
+        match ctx.key {
+            None => {return StateAction::NoAction},
+            Some(key) => {
 
-	}
+                match key {
+                    VirtualKeyCode::Escape => {return StateAction::Exit},
+                    VirtualKeyCode::F2 => {
+                        info!("Screenshot");
+                        ctx.screenshot("screenshots/screenshot.png");
+                        return StateAction::NoAction
+                    },
+                    _ => {return StateAction::NoAction},
+                }
+            }
+        }
+    }
+
+    fn render (&mut self, ctx : &mut BTerm) {
+      self.render_dispatcher.dispatch(&mut self.world);
+
+      let draw_result = render_draw_buffer(ctx);
+      match draw_result{
+            Ok(_v) => {},
+            Err(e) => {
+                error!("Error on rendering draw buffer : {}", e);
+            },
+      }
+      //this is done so the gui is rendered on top of everythign else
+      self.gui_render_dispatcher.dispatch(&mut self.world);
+      let draw_result = render_draw_buffer(ctx);
+      match draw_result{
+            Ok(_v) => {},
+            Err(e) => {
+                error!("Error on rendering draw buffer : {}", e);
+            },
+      }
+    }
+    
+    fn on_exit (&mut self) {}
 }
