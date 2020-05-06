@@ -20,7 +20,6 @@ use crate::systems::actor::PlayerMoveSystem;
 use crate::systems::player::PickUpSystem;
 use crate::systems::gui::GUIUpdate;
 use crate::systems::lighting::LightingSystem;
-use crate::systems::lighting::lightmask::LightMask;
 
 pub struct TestState <'a, 'b>{
     world : World,
@@ -28,10 +27,7 @@ pub struct TestState <'a, 'b>{
     render_dispatcher : Dispatcher<'a, 'b>,
     gui_render_dispatcher  : Dispatcher<'a, 'b>,
     screen_size : (u32,u32),
-    mask : Vec<f64>,
 }
-
-const mask_size : usize = 20;
 
 impl <'a, 'b> TestState <'a, 'b> {
     pub fn new (ctx : &mut BTerm) -> Self {
@@ -76,7 +72,6 @@ impl <'a, 'b> TestState <'a, 'b> {
             render_dispatcher : render_dispatcher,
             gui_render_dispatcher : gui_render_dispatcher,
             screen_size : ctx.get_char_size(),
-            mask : Vec::new(),
         }
     }
 }
@@ -85,11 +80,11 @@ impl <'a, 'b> State for TestState <'a ,'b> {
 
     fn init (&mut self) {
        self.world.create_entity()
-            .with(Position::new(1, 2))
+            .with(Position::new(0, 0))
             .with(PlayerTag)
             .with(Inventory::new())
             .with(Renderable::new(64, RGB::from_f32(1.0, 1.0, 1.0), RGB::from_f32(0.0, 0.0, 0.0), false))
-            .with(Light::new(15, 1.0))
+            .with(Light::new(20, 1.0, RGB::from_f32(0.0, 1.0, 0.0)))
             .with(Actor::new())
             .build();
 
@@ -116,8 +111,21 @@ impl <'a, 'b> State for TestState <'a ,'b> {
         self.world.create_entity()
             .with(Position::new(3, 3))
             .with(Renderable::new(224, RGB::from_f32(1.0, 1.0, 0.0), RGB::from_f32(0.0, 0.0, 0.0), true))
-            .with(Light::new(15, 1.0))
+            .with(Light::new(15, 1.0, RGB::from_f32(1.0, 0.0, 0.0)))
             .build();
+
+        self.world.create_entity()
+            .with(Position::new(79, 39))
+            .with(Renderable::new(224, RGB::from_f32(1.0, 1.0, 0.0), RGB::from_f32(0.0, 0.0, 0.0), true))
+            .with(Light::new(20, 1.0, RGB::from_f32(0.0, 0.0, 1.0)))
+            .build();
+
+        self.world.create_entity()
+            .with(Position::new(79, 0))
+            .with(Renderable::new(224, RGB::from_f32(1.0, 1.0, 0.0), RGB::from_f32(0.0, 0.0, 0.0), true))
+            .with(Light::new(30, 1.0, RGB::from_f32(1.0, 1.0, 1.0)))
+            .build();
+
 
         let player_card_bounds = Rect::with_size(0, 0, self.screen_size.0/4, self.screen_size.1);
 

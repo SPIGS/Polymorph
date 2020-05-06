@@ -42,7 +42,7 @@ fn main() {
     CombinedLogger::init(
         vec![
             TermLogger::new(filter, Config::default(), TerminalMode::Mixed).unwrap(),
-            WriteLogger::new(filter, Config::default(), File::create("polymorph.log").unwrap()),
+            WriteLogger::new(filter, Config::default(), File::create("ploymorph.log").unwrap()),
         ]
     ).unwrap();
 

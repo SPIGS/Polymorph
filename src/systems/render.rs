@@ -103,6 +103,7 @@ impl <'a> System<'a> for RenderSystem {
 		    let screen_y = { (self.screen_size.1 as i32 /2) + (position.y - player_y) + self.vert_offset};
             if !renderable.shadeless {
                 let fg = renderable.get_shaded_foreground();
+                println!("{:?}", renderable.shading);
                 let bg = renderable.get_shaded_background();
                 self.draw_batch.set(Point::new(screen_x, screen_y), ColorPair::new(fg, bg), renderable.glyph);
             } else {

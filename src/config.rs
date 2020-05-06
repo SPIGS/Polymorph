@@ -4,7 +4,6 @@ use std::io::Write;
 use std::fs::File;
 use std::fs;
 use bracket_lib::prelude::BACKEND;
-use glutin::dpi::PhysicalSize;
 
 /// Wrapper for user settings. Includes the serialized structure of user settings from the config file as well as log and debugging information.
 pub struct SettingsContext {

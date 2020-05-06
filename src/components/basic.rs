@@ -29,7 +29,7 @@ pub struct Renderable {
     pub fg : RGB,
     pub bg : RGB,
     pub shadeless : bool,
-    pub shading : (f32, f32, f32),
+    pub shading : RGB,
 }
 
 impl Renderable {
@@ -39,7 +39,7 @@ impl Renderable {
             fg : foreground_color,
             bg : background_color,
             shadeless : shadeless,
-            shading : (1.0, 1.0, 1.0),
+            shading : RGB::from_f32(0.0, 0.0, 0.0),
         }
     }
 
@@ -49,24 +49,26 @@ impl Renderable {
             fg : foreground_color,
             bg : background_color,
             shadeless : shadeless,
-            shading : (1.0, 1.0, 1.0),
+            shading : RGB::from_f32(0.0, 0.0, 0.0),
         }
     }
 
     pub fn get_shaded_foreground (&self) -> RGB {
-        let obj_r = self.fg.r;
-        let obj_g = self.fg.g;
-        let obj_b = self.fg.b;
+        let combined : RGB;
 
-        return RGB::from_f32(obj_r * self.shading.0, obj_g * self.shading.1, obj_b * self.shading.2)
+        // if the light or obj has no hue
+        if (self.shading.r == self.shading.g && self.shading.g == self.shading.b) || (self.fg.r == self.fg.g && self.fg.g == self.fg.b){
+            combined = self.fg * self.shading;
+        } else {
+            let value = self.shading.to_hsv().v;
+            combined = RGB::from_f32((self.fg.r + self.shading.r) * value, (self.fg.g + self.shading.g) * value, (self.fg.b + self.shading.b) * value);
+        }
+        
+        return combined;
     }
 
     pub fn get_shaded_background (&self) -> RGB {
-        let obj_r = self.bg.r;
-        let obj_g = self.bg.g;
-        let obj_b = self.bg.b;
-
-        return RGB::from_f32(obj_r * self.shading.0, obj_g * self.shading.1, obj_b * self.shading.2)
+        return (self.bg + self.shading) * 0.5;
     }
 }
 
@@ -153,13 +155,15 @@ impl Actor {
 pub struct Light {
     pub radius : u32,
     pub intensity : f32,
+    pub color : RGB,
 }
 
 impl Light {
-    pub fn new (radius : u32, intensity : f32) -> Self {
+    pub fn new (radius : u32, intensity : f32, color : RGB) -> Self {
         Light {
             radius : radius,
             intensity : intensity,
+            color : color,
         }
     }
 }
