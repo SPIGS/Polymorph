@@ -18,6 +18,9 @@ use crate::systems::actor::PlayerMoveSystem;
 use crate::systems::player::PickUpSystem;
 use crate::systems::gui::GUIUpdate;
 use crate::systems::lighting::LightingSystem;
+use crate::level_generation::map::{Map, MapType};
+use crate::systems::level::LevelGenSystem;
+use crate::systems::render::ObjectShader;
 
 pub struct TestState <'a, 'b>{
     world : World,
@@ -41,7 +44,19 @@ impl <'a, 'b> TestState <'a, 'b> {
 
         world.insert(DeltaTime(0.0));
         world.insert(CurrentInput::default());
+
+        let seed = String::from("asdf");
+        let mut map = Map::new(100, 100, seed, MapType::Cavern);
+        map.generate();
+        world.insert(map);
         
+        let mut level_gen_dispatcher = specs::DispatcherBuilder::new()
+                .with(LevelGenSystem, "level_gen", &[])
+                .build();
+        level_gen_dispatcher.setup(&mut world);
+
+        level_gen_dispatcher.dispatch(&world);
+
         let mut update_dispatcher = specs::DispatcherBuilder::new()
                 .with(PlayerMoveSystem, "move_system", &[])
                 .with(PickUpSystem, "pickup_system", &[])
@@ -77,53 +92,14 @@ impl <'a, 'b> TestState <'a, 'b> {
 impl <'a, 'b> State for TestState <'a ,'b> {
 
     fn init (&mut self) {
-       self.world.create_entity()
+        self.world.create_entity()
             .with(Position::new(0, 0))
             .with(PlayerTag)
             .with(Inventory::new())
-            .with(Renderable::new(64, RGB::from_f32(1.0, 1.0, 1.0), RGB::from_f32(0.0, 0.0, 0.0), false))
-            .with(Light::new(20, 1.0, RGB::from_f32(1.0, 1.0, 1.0)))
+            .with(Renderable::new(64, RGB::from_f32(1.0, 1.0, 1.0), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::Foreground, ObjectShader::Background))
+            .with(Light::new(12, 1.0, RGB::from_f32(1.0, 1.0, 1.0)))
             .with(Actor::new())
             .build();
-
-        for x in 0..80 {
-            for y in 0..40 {
-                self.world.create_entity()
-                    .with(Position::new(x, y))
-                    .with(Renderable::new(46, RGB::from_f32(1.0, 1.0, 1.0), RGB::from_f32(0.0, 0.0, 0.0), false))
-                    .build();
-            }
-        }
-
-        for x in 20..40 {
-            for y in 10..30 {
-                if x == 20 || y == 10 || y == 30 || x==40{
-                    self.world.create_entity()
-                        .with(Position::new(x, y))
-                        .with(Renderable::new(219, RGB::from_f32(1.0, 0.0, 0.0), RGB::from_f32(0.0, 0.0, 0.0), false))
-                        .build();
-                }
-            }
-        }
-
-        self.world.create_entity()
-            .with(Position::new(3, 3))
-            .with(Renderable::new(224, RGB::from_f32(1.0, 1.0, 0.0), RGB::from_f32(0.0, 0.0, 0.0), true))
-            .with(Light::new(15, 1.0, RGB::from_f32(1.0, 0.0, 0.0)))
-            .build();
-
-        self.world.create_entity()
-            .with(Position::new(79, 39))
-            .with(Renderable::new(224, RGB::from_f32(1.0, 1.0, 0.0), RGB::from_f32(0.0, 0.0, 0.0), true))
-            .with(Light::new(20, 1.0, RGB::from_f32(0.0, 0.0, 1.0)))
-            .build();
-
-        self.world.create_entity()
-            .with(Position::new(79, 0))
-            .with(Renderable::new(224, RGB::from_f32(1.0, 1.0, 0.0), RGB::from_f32(0.0, 0.0, 0.0), true))
-            .with(Light::new(30, 1.0, RGB::from_f32(1.0, 1.0, 1.0)))
-            .build();
-
 
         let player_card_bounds = Rect::with_size(0, 0, self.screen_size.0/4, self.screen_size.1);
 

@@ -20,6 +20,13 @@ use crate::raw::RAW;
 // 	return renderable;
 // }
 
+#[derive(Debug, PartialEq)]
+pub enum ObjectShader {
+    NoShading,
+    Foreground,
+    Background,
+}
+
 pub struct RenderSystem {
     pub draw_batch : Reusable<'static, DrawBatch>,
     pub horiz_offset : i32,
@@ -75,39 +82,29 @@ impl <'a> System<'a> for RenderSystem {
             let screen_x = {(self.screen_size.0 as i32 / 2) + (position.x - player_x) + self.horiz_offset};
             let screen_y = { (self.screen_size.1 as i32 /2) + (position.y - player_y) + self.vert_offset};
 
-            if !renderable.shadeless {
-                let fg = renderable.get_shaded_foreground();
-                let bg = renderable.get_shaded_background();
-                self.draw_batch.set(Point::new(screen_x, screen_y), ColorPair::new(fg, bg), renderable.glyph);
-            } else {
-                self.draw_batch.set(Point::new(screen_x, screen_y), ColorPair::new(renderable.fg, renderable.bg), renderable.glyph);
-            }
+            let fg = renderable.get_shaded_foreground();
+            let bg = renderable.get_shaded_background();
+            self.draw_batch.set(Point::new(screen_x, screen_y), ColorPair::new(fg, bg), renderable.glyph);
 
         }
         //draw non player actors
         for (position, renderable, _player) in (&positions, &renderables, !&player_tag).join() {
             let screen_x = {(self.screen_size.0 as i32 / 2) + (position.x - player_x) + self.horiz_offset};
 		    let screen_y = { (self.screen_size.1 as i32 /2) + (position.y - player_y) + self.vert_offset};
-            if !renderable.shadeless {
-                let fg = renderable.get_shaded_foreground();
-                let bg = renderable.get_shaded_background();
-                self.draw_batch.set(Point::new(screen_x, screen_y), ColorPair::new(fg, bg), renderable.glyph);
-            } else {
-                self.draw_batch.set(Point::new(screen_x, screen_y), ColorPair::new(renderable.fg, renderable.bg), renderable.glyph);
-            }
+            
+            let fg = renderable.get_shaded_foreground();
+            let bg = renderable.get_shaded_background();
+            self.draw_batch.set(Point::new(screen_x, screen_y), ColorPair::new(fg, bg), renderable.glyph);
         }
 
         //draw player
         for (position, _player, renderable) in (&positions, &player_tag, &renderables).join() {
             let screen_x = {(self.screen_size.0 as i32 / 2) + (position.x - player_x) + self.horiz_offset};
-		    let screen_y = { (self.screen_size.1 as i32 /2) + (position.y - player_y) + self.vert_offset};
-            if !renderable.shadeless {
-                let fg = renderable.get_shaded_foreground();
-                let bg = renderable.get_shaded_background();
-                self.draw_batch.set(Point::new(screen_x, screen_y), ColorPair::new(fg, bg), renderable.glyph);
-            } else {
-                self.draw_batch.set(Point::new(screen_x, screen_y), ColorPair::new(renderable.fg, renderable.bg), renderable.glyph);
-            }
+            let screen_y = { (self.screen_size.1 as i32 /2) + (position.y - player_y) + self.vert_offset};
+            
+            let fg = renderable.get_shaded_foreground();
+            let bg = renderable.get_shaded_background();
+            self.draw_batch.set(Point::new(screen_x, screen_y), ColorPair::new(fg, bg), renderable.glyph);
         }
 
         //draw inventory (temporary)

@@ -171,3 +171,23 @@ impl GameState for Manager {
         }
     }
 }
+
+pub mod time {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    /// Gets the current time in milliseconds from the epoch.
+    pub fn get_current_time_millis () -> u128 {
+        let start = SystemTime::now();
+        let since_epoch = start.duration_since(UNIX_EPOCH)
+            .expect("Contact Einstein.");
+        return since_epoch.as_millis();
+    }
+
+    /// Gets the current time in nanoseconds from the epoch.
+    pub fn get_current_time_nano () -> u128 {
+        let start = SystemTime::now();
+        let since_epoch = start.duration_since(UNIX_EPOCH)
+            .expect("Contact Einstein");
+        return since_epoch.as_nanos();
+    }
+}

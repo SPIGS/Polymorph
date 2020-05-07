@@ -1,8 +1,10 @@
 use bracket_lib::prelude::RGB;
-use specs::{ReadStorage, WriteStorage, System};
+use specs::{ReadStorage, WriteStorage, System, Read};
 
 use crate::components::basic::{Light, Position, Renderable};
 use lightmask::LightMask;
+use crate::level_generation::map::Map;
+use crate::systems::render::ObjectShader;
 
 pub struct LightingSystem;
 
@@ -11,32 +13,23 @@ impl<'a> System<'a> for LightingSystem {
         ReadStorage<'a, Position>,
         WriteStorage<'a, Renderable>,
         ReadStorage<'a, Light>,
+        Read<'a, Map>
     );
 
-    fn run(&mut self, (positions, mut renderables, lights): Self::SystemData) {
+    fn run(&mut self, (positions, mut renderables, lights, map): Self::SystemData) {
         use specs::Join;
 
-        let mut light_mask = LightMask::new(80, 40);
+        let mut light_mask = LightMask::new(map.width, map.height);
 
         for (position, light) in (&positions, &lights).join() {
             light_mask.add_light(&position, &light);
         }
 
-        let mut walls : Vec<f32> = vec![0.0; 80*40];
-
-        for x in 20..40 {
-            for y in 10..30 {
-                if x == 20 || y == 10 || y == 30 || x==40 {
-                    walls[x+y*80] = 1.0;
-                }
-            }
-        }
-        
-        light_mask.compute_mask(&walls);
+        light_mask.compute_mask(&map.transparency_map);
 
         //apply shading to renderables
         for (position, renderable) in (&positions, &mut renderables).join() {
-            if !renderable.shadeless {
+            if !(renderable.fg_shader == ObjectShader::NoShading && renderable.bg_shader == ObjectShader::NoShading){
                 let x = position.x as usize;
                 let y = position.y as usize;
                 let r_br = light_mask.r_mask[x + y * light_mask.width] as f32;
@@ -59,9 +52,9 @@ pub mod lightmask {
         pub b_mask: Vec<f32>,
         pub width: usize,
         pub height: usize,
-        pub distance_map_r: Vec<f32>,
-        pub distance_map_g: Vec<f32>,
-        pub distance_map_b: Vec<f32>,
+        distance_map_r: Vec<f32>,
+        distance_map_g: Vec<f32>,
+        distance_map_b: Vec<f32>,
         lights_r: Vec<Node>,
         lights_g: Vec<Node>,
         lights_b: Vec<Node>,
@@ -112,7 +105,7 @@ pub mod lightmask {
 mod lightmask_helper {
     use crate::components::basic::{Position};
 
-    const SOME_CONSTANT : f32 = 15.0;
+    const SOME_CONSTANT : f32 = 10.0;
 
     #[derive(Copy, Debug, Clone)]
     pub struct Node {

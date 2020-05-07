@@ -17,5 +17,7 @@ toml = "0.5.6"
 specs-derive = "0.4.1"
 specs = "0.16.1"
 object-pool = "0.4"
+sha2 = "0.8.0"
+rand = "0.5.0"
 serde = { version = "1.0.104", features = ["derive"] }
 

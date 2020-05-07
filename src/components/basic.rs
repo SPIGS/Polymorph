@@ -3,6 +3,8 @@ use bracket_lib::prelude::RGB;
 
 use std::collections::HashMap;
 
+use crate::systems::render::ObjectShader;
+
 use crate::raw::ItemRaw;
 use crate::raw::{RAW};
 
@@ -28,47 +30,72 @@ pub struct Renderable {
     pub glyph: u16,
     pub fg : RGB,
     pub bg : RGB,
-    pub shadeless : bool,
+    pub fg_shader : ObjectShader,
+    pub bg_shader : ObjectShader,
     pub shading : RGB,
 }
 
 impl Renderable {
-    pub fn new (glyph: u16, foreground_color : RGB, background_color : RGB, shadeless : bool) -> Self {
+    pub fn new (glyph: u16, foreground_color : RGB, background_color : RGB, fg_shader : ObjectShader, bg_shader : ObjectShader) -> Self {
         Renderable {
             glyph : glyph,
             fg : foreground_color,
             bg : background_color,
-            shadeless : shadeless,
+            fg_shader : fg_shader,
+            bg_shader : bg_shader,
             shading : RGB::from_f32(0.0, 0.0, 0.0),
         }
     }
 
-    pub fn new_from_char(glyph : char, foreground_color : RGB, background_color : RGB, shadeless : bool) -> Self{
+    pub fn new_from_char(glyph : char, foreground_color : RGB, background_color : RGB, fg_shader : ObjectShader, bg_shader : ObjectShader) -> Self{
         Renderable {
             glyph : glyph as u16,
             fg : foreground_color,
             bg : background_color,
-            shadeless : shadeless,
+            fg_shader : fg_shader,
+            bg_shader : bg_shader,
             shading : RGB::from_f32(0.0, 0.0, 0.0),
         }
     }
 
     pub fn get_shaded_foreground (&self) -> RGB {
-        let combined : RGB;
+        let shaded_foreground : RGB;
 
-        // if the light or obj has no hue
-        if (self.shading.r == self.shading.g && self.shading.g == self.shading.b) || (self.fg.r == self.fg.g && self.fg.g == self.fg.b){
-            combined = self.fg * self.shading;
+        if self.fg_shader == ObjectShader::Foreground {
+            // if the light or obj has no hue
+            if (self.shading.r == self.shading.g && self.shading.g == self.shading.b) || (self.fg.r == self.fg.g && self.fg.g == self.fg.b){
+                shaded_foreground = self.fg * self.shading;
+            } else {
+                let value = self.shading.to_hsv().v;
+                shaded_foreground = RGB::from_f32((self.fg.r + self.shading.r) * value, (self.fg.g + self.shading.g) * value, (self.fg.b + self.shading.b) * value);
+            }
+        } else if self.fg_shader == ObjectShader::Background {
+            shaded_foreground = (self.fg + self.shading) * 0.30
         } else {
-            let value = self.shading.to_hsv().v;
-            combined = RGB::from_f32((self.fg.r + self.shading.r) * value, (self.fg.g + self.shading.g) * value, (self.fg.b + self.shading.b) * value);
+            shaded_foreground = self.fg;
         }
-        
-        return combined;
+
+        return shaded_foreground;
     }
 
     pub fn get_shaded_background (&self) -> RGB {
-        return (self.bg + self.shading) * 0.5;
+        let shaded_background : RGB;
+
+       if self.bg_shader == ObjectShader::Foreground {
+            // if the light or obj has no hue
+            if (self.shading.r == self.shading.g && self.shading.g == self.shading.b) || (self.fg.r == self.fg.g && self.fg.g == self.fg.b){
+                shaded_background = self.bg * self.shading;
+            } else {
+                let value = self.shading.to_hsv().v;
+                shaded_background = RGB::from_f32((self.bg.r + self.shading.r) * value, (self.bg.g + self.shading.g) * value, (self.bg.b + self.shading.b) * value);
+            }
+        } else if self.bg_shader == ObjectShader::Background {
+            shaded_background = (self.bg + self.shading) * 0.30
+        } else {
+            shaded_background = self.bg
+        }
+        
+        return shaded_background;
     }
 }
 

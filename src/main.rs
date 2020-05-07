@@ -19,7 +19,7 @@ pub mod systems;
 pub mod item;
 pub mod test_state;
 pub mod raw;
-pub mod level;
+pub mod level_generation;
 
 use simplelog::*;
 use std::fs::File;

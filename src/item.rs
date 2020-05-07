@@ -49,6 +49,7 @@ use specs::{Entity, EntityBuilder, Builder};
 use crate::components::basic::{Renderable, Position, ItemWrapper, Currency};
 use bracket_lib::prelude::RGB;
 use crate::raw::*;
+use crate::systems::render::ObjectShader;
 
 pub struct ItemBuilder;
 
@@ -69,7 +70,7 @@ impl ItemBuilder {
         item_entity = item_entity.with(Position::new(position.0, position.1));
         match item.item_type.as_str() {
             "potion" => {
-                item_entity = item_entity.with(Renderable::new(235, RGB::from_u8(0, 0, 255), RGB::from_u8(0, 0, 0), true));
+                item_entity = item_entity.with(Renderable::new(235, RGB::from_u8(0, 0, 255), RGB::from_u8(0, 0, 0), ObjectShader::Foreground, ObjectShader::Background));
             },
             "currency" => {
                 item_entity = item_entity.with(Currency{amt : 1});
@@ -119,10 +120,10 @@ impl ItemBuilder {
                     glyph = glyph_raw as u16;
                 }
                 
-                temp_builder = temp_builder.with(Renderable::new(glyph, fg, bg, true));
+                temp_builder = temp_builder.with(Renderable::new(glyph, fg, bg, ObjectShader::Foreground, ObjectShader::Background));
             },
             _ => {
-                temp_builder = temp_builder.with(Renderable::new_from_char('!', RGB::from_u8(255, 0, 0), RGB::from_u8(0, 0, 0), true));
+                temp_builder = temp_builder.with(Renderable::new_from_char('!', RGB::from_u8(255, 0, 0), RGB::from_u8(0, 0, 0), ObjectShader::Foreground, ObjectShader::Background));
                 error!("Item: \"{}\" missing renderable component; Failing back on defaults", raw_item.name);
             }
         }
