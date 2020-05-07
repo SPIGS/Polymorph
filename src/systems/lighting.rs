@@ -27,7 +27,7 @@ impl<'a> System<'a> for LightingSystem {
         for x in 20..40 {
             for y in 10..30 {
                 if x == 20 || y == 10 || y == 30 || x==40 {
-                    walls[x+y*80] = 0.5;
+                    walls[x+y*80] = 1.0;
                 }
             }
         }
@@ -47,8 +47,6 @@ impl<'a> System<'a> for LightingSystem {
         }
     }
 }
-
-//TODO make good lighting
 
 pub mod lightmask {
     use crate::components::basic::{Position, Light};
