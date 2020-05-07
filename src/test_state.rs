@@ -3,9 +3,7 @@ use bracket_lib::prelude::VirtualKeyCode;
 use bracket_lib::prelude::DrawBatch;
 use bracket_lib::prelude::render_draw_buffer;
 use bracket_lib::prelude::RGB;
-use bracket_lib::prelude::ColorPair;
 use bracket_lib::prelude::Rect;
-use bracket_lib::prelude::Point;
 
 //use specs::{Dispatcher, World, Builder};
 use specs::prelude::{World, WorldExt, Dispatcher, Builder};
@@ -84,7 +82,7 @@ impl <'a, 'b> State for TestState <'a ,'b> {
             .with(PlayerTag)
             .with(Inventory::new())
             .with(Renderable::new(64, RGB::from_f32(1.0, 1.0, 1.0), RGB::from_f32(0.0, 0.0, 0.0), false))
-            .with(Light::new(20, 1.0, RGB::from_f32(0.0, 1.0, 0.0)))
+            .with(Light::new(20, 1.0, RGB::from_f32(1.0, 1.0, 1.0)))
             .with(Actor::new())
             .build();
 
