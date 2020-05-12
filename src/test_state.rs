@@ -45,7 +45,7 @@ impl <'a, 'b> TestState <'a, 'b> {
         world.insert(DeltaTime(0.0));
         world.insert(CurrentInput::default());
 
-        let seed = String::from("asdf");
+        let seed = String::from("test");
         let mut map = Map::new(100, 100, seed, MapType::Cavern);
         map.generate();
         world.insert(map);
@@ -97,7 +97,7 @@ impl <'a, 'b> State for TestState <'a ,'b> {
             .with(PlayerTag)
             .with(Inventory::new())
             .with(Renderable::new(64, RGB::from_f32(1.0, 1.0, 1.0), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::Foreground, ObjectShader::Background))
-            .with(Light::new(12, 1.0, RGB::from_f32(1.0, 1.0, 1.0)))
+            .with(Light::new(5, 1.0, RGB::from_f32(1.0, 1.0, 1.0)))
             .with(Actor::new())
             .build();
 

@@ -1,15 +1,6 @@
 use rand::{StdRng, SeedableRng};
 use super::cellular;
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum TileType {
-    Empty,
-    Floor,
-    Wall,
-}
-impl Default for TileType {
-    fn default() -> Self { TileType::Empty }
-}
+use tile::*;
 
 #[derive(Debug)]
 pub struct Seed {
@@ -66,8 +57,8 @@ pub struct Map {
 	pub height : usize,
 	pub map_type : MapType,
 	pub raw_seed: String,
-	hashed_seed: Seed,
-	rng : StdRng,
+	pub hashed_seed: Seed,
+	pub rng : StdRng,
     pub tiles : Vec<TileType>,
     pub transparency_map : Vec<f32>,
 }
@@ -110,5 +101,83 @@ impl Map {
 	pub fn generate (&mut self) {
 		info!("Generating map...");
 		cellular::generate(self.width, self.height, &mut self.tiles, &mut self.transparency_map, &mut self.rng);
+	}
+}
+
+pub mod tile {
+	#[derive(Copy, Clone, Debug, PartialEq)]
+	pub enum TileType {
+		Empty,
+		Floor,
+		Wall,
+		ShallowWater,
+		DeepWater,
+		ShallowLava,
+		DeepLava,
+		ShortGrass(i32),
+		TallGrass(i32),
+		SmallMushroom,
+		LargeMushroom,
+	}
+
+	impl Default for TileType {
+		fn default() -> Self { TileType::Empty }
+	}
+
+	/// Returns true if the given tile type is safe for spawning the player and for pathing
+	pub fn is_safe (tile_type : TileType) -> bool {
+		match tile_type {
+			TileType::Wall => false,
+			TileType::DeepLava | TileType::ShallowLava => false,
+			_ => true,
+		}
+	}
+
+	/// Returns the large variant of a tile type if it is foliage. Panics otherwise.
+	pub fn large_foliage_variant (tile_type : TileType) -> TileType {
+		match tile_type {
+			TileType::ShortGrass(_i) | TileType::TallGrass(_i) => TileType::TallGrass(0),
+			TileType::SmallMushroom | TileType::LargeMushroom => TileType::LargeMushroom,
+			_ => {
+				error!("Unknown foliage type {:?}", tile_type);
+				panic!("Unknown foliage type {:?}", tile_type);
+			}
+		}
+	}
+
+	/// Returns the small variant of a tile type if it is foliage. Panics otherwise.
+	pub fn small_foliage_variant (tile_type : TileType) -> TileType {
+		match tile_type {
+			TileType::ShortGrass(_i) | TileType::TallGrass(_i) => TileType::ShortGrass(0),
+			TileType::SmallMushroom | TileType::LargeMushroom => TileType::SmallMushroom,
+			_ => {
+				error!("Unknown foliage type {:?}", tile_type);
+				panic!("Unknown foliage type {:?}", tile_type);
+			}
+		}
+	}
+
+	/// Returns the deep variant of a tile type if it is liquid. Panics otherwise.
+	pub fn deep_liquid_variant (tile_type : TileType) -> TileType {
+		match tile_type {
+			TileType::DeepLava | TileType::ShallowLava => TileType::DeepLava,
+			TileType::DeepWater | TileType::ShallowWater => TileType::DeepWater,
+			_ => {
+				error!("Unknown liquid type {:?}", tile_type);
+				panic!("Unknown liquid type {:?}", tile_type);
+			}
+		}
+	}
+
+	/// Returns the shallow variant of a tile type if it is liquid. Panics otherwise.
+	pub fn shallow_liquid_variant (tile_type : TileType) -> TileType {
+		match tile_type {
+			TileType::DeepLava | TileType::ShallowLava => TileType::ShallowLava,
+			TileType::DeepWater | TileType::ShallowWater => TileType::ShallowWater,
+			_ => {
+				error!("Unknown liquid type {:?}", tile_type);
+				panic!("Unknown liquid type {:?}", tile_type);
+			}
+		}
 	}
 }

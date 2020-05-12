@@ -24,6 +24,8 @@ impl Position {
     }
 }
 
+const BG_SHADE_MULT : f32 = 0.15;
+
 #[derive(Component, Debug)]
 #[storage(DenseVecStorage)]
 pub struct Renderable {
@@ -70,7 +72,7 @@ impl Renderable {
                 shaded_foreground = RGB::from_f32((self.fg.r + self.shading.r) * value, (self.fg.g + self.shading.g) * value, (self.fg.b + self.shading.b) * value);
             }
         } else if self.fg_shader == ObjectShader::Background {
-            shaded_foreground = (self.fg + self.shading) * 0.30
+            shaded_foreground = (self.fg + self.shading) * BG_SHADE_MULT
         } else {
             shaded_foreground = self.fg;
         }
@@ -90,7 +92,7 @@ impl Renderable {
                 shaded_background = RGB::from_f32((self.bg.r + self.shading.r) * value, (self.bg.g + self.shading.g) * value, (self.bg.b + self.shading.b) * value);
             }
         } else if self.bg_shader == ObjectShader::Background {
-            shaded_background = (self.bg + self.shading) * 0.30
+            shaded_background = (self.bg + self.shading) * BG_SHADE_MULT
         } else {
             shaded_background = self.bg
         }
