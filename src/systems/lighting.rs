@@ -24,6 +24,7 @@ impl<'a> System<'a> for LightingSystem {
         for (position, light) in (&positions, &lights).join() {
             light_mask.add_light(&position, &light);
         }
+        light_mask.set_ambient(RGB::from_f32(0.0, 0.0, 0.2));
 
         light_mask.compute_mask(&map.transparency_map);
 
@@ -44,6 +45,7 @@ impl<'a> System<'a> for LightingSystem {
 pub mod lightmask {
     use crate::components::basic::{Position, Light};
     use super::lightmask_helper::{Node, compute_channel};
+    use bracket_lib::prelude::RGB;
 
     #[derive(Debug)]
     pub struct LightMask {
@@ -52,6 +54,7 @@ pub mod lightmask {
         pub b_mask: Vec<f32>,
         pub width: usize,
         pub height: usize,
+        ambient_light : RGB,
         distance_map_r: Vec<f32>,
         distance_map_g: Vec<f32>,
         distance_map_b: Vec<f32>,
@@ -68,6 +71,7 @@ pub mod lightmask {
                 b_mask: vec![0.0; width * height],
                 width: width,
                 height: height,
+                ambient_light : RGB::from_f32(0.0, 0.0, 0.0),
                 distance_map_r: vec![0.0; width * height],
                 distance_map_g: vec![0.0; width * height],
                 distance_map_b: vec![0.0; width * height],
@@ -92,13 +96,25 @@ pub mod lightmask {
             self.lights_b.push(Node::new(cost_b, position));
         }
 
+        pub fn set_ambient (&mut self, ambient : RGB) {
+            self.ambient_light = ambient;
+        }
+
         pub fn compute_mask (&mut self, walls : &Vec<f32>) {
             compute_channel(self.width, self.height, &self.lights_r, &mut self.distance_map_r, &mut self.r_mask, walls);
             compute_channel(self.width, self.height, &self.lights_g, &mut self.distance_map_g, &mut self.g_mask, walls);
             compute_channel(self.width, self.height, &self.lights_b, &mut self.distance_map_b, &mut self.b_mask, walls);
-        }
-        
-        
+
+            for i in 0..self.r_mask.len() {
+                self.r_mask[i] += self.ambient_light.r;
+            }
+            for i in 0..self.g_mask.len() {
+                self.g_mask[i] += self.ambient_light.g;
+            }
+            for i in 0..self.b_mask.len() {
+                self.b_mask[i] += self.ambient_light.b;
+            }
+        } 
     }
 }
 

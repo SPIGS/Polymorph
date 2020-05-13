@@ -80,7 +80,6 @@ fn main() {
         BACKEND.lock().context_wrapper.as_ref().unwrap().wc.window().set_maximized(true);
     }
 
-
     debug!("Creating Manager");
     let mut gs: Manager = Manager::new();
     gs.push(Box::new(TestState::new(&mut context)), Option::from(format!("Initial state.")));

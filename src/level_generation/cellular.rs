@@ -1,7 +1,7 @@
 use rand::{Rng, StdRng};
 use super::map::tile::TileType;
 
-const INITIAL_FILL_PERCENT : i32 = 35;
+const INITIAL_FILL_PERCENT : i32 = 36;
 const CLEANUP_THRESHOLD : usize = 11;
 
 #[derive(Clone)]
