@@ -17,7 +17,7 @@ impl <'a> System<'a> for LevelGenSystem {
     );
 
     fn run (&mut self, (mut positions, mut renderables, mut lights, map, entities) : Self::SystemData) {
-        if map.map_type == MapType::Cavern {
+
             let mut rng : StdRng = SeedableRng::from_seed(map.hashed_seed.to_256_bit());
             for x in 0..map.width {
                 for y in 0..map.height {
@@ -85,11 +85,94 @@ impl <'a> System<'a> for LevelGenSystem {
                         TileType::LargeMushroom => {
                              make_mushroom(&entities, &mut positions, &mut renderables, &mut lights, true, &mut rng, x, y);
                         },
+                        TileType::ThinWebs => {
+                            make_web(&entities, &mut positions, &mut renderables, false, &mut rng, x, y);
+                        },
+                        TileType::ThickWebs => {
+                            make_web(&entities, &mut positions, &mut renderables, true, &mut rng, x, y);
+                        },
+                        TileType::EggSac => {
+                            make_egg_sac(&entities, &mut positions, &mut renderables, x, y);
+                        },
+                        TileType::TentTopCenter => {
+                            let _ = entities.build_entity()
+                                    .with(Position::new(x as i32, y as i32), &mut positions)
+                                    .with(Renderable::new(196, RGB::from_u8(191, 151, 96), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::Foreground, ObjectShader::Background), &mut renderables)
+                                    .build();
+                        },
+                        TileType::TentTopLeft => {
+                            let _ = entities.build_entity()
+                                    .with(Position::new(x as i32, y as i32), &mut positions)
+                                    .with(Renderable::new(218, RGB::from_u8(191, 151, 96), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::Foreground, ObjectShader::Background), &mut renderables)
+                                    .build();
+                        },
+                        TileType::TentTopRight => {
+                            let _ = entities.build_entity()
+                                    .with(Position::new(x as i32, y as i32), &mut positions)
+                                    .with(Renderable::new(191, RGB::from_u8(191, 151, 96), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::Foreground, ObjectShader::Background), &mut renderables)
+                                    .build();
+                        },
+                        TileType::TentBottomCenter => {
+                            let _ = entities.build_entity()
+                                    .with(Position::new(x as i32, y as i32), &mut positions)
+                                    .with(Renderable::new(205, RGB::from_u8(191, 151, 96), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::Foreground, ObjectShader::Background), &mut renderables)
+                                    .build();
+                        },
+                        TileType::TentBottomLeft => {
+                            let _ = entities.build_entity()
+                                    .with(Position::new(x as i32, y as i32), &mut positions)
+                                    .with(Renderable::new(198, RGB::from_u8(191, 151, 96), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::Foreground, ObjectShader::Background), &mut renderables)
+                                    .build();
+                        },
+                        TileType::TentBottomRight => {
+                            let _ = entities.build_entity()
+                                    .with(Position::new(x as i32, y as i32), &mut positions)
+                                    .with(Renderable::new(181, RGB::from_u8(191, 151, 96), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::Foreground, ObjectShader::Background), &mut renderables)
+                                    .build();
+                        },
+                        TileType::CampSeat => {
+                            let _ = entities.build_entity()
+                                    .with(Position::new(x as i32, y as i32), &mut positions)
+                                    .with(Renderable::new(61, RGB::from_u8(145, 119, 61), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::Foreground, ObjectShader::Background), &mut renderables)
+                                    .build();
+                        },
+                        TileType::Fire => {
+                            let _ = entities.build_entity()
+                                    .with(Position::new(x as i32, y as i32), &mut positions)
+                                    .with(Renderable::new(30, RGB::from_u8( 245, 176, 65), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::NoShading, ObjectShader::Background), &mut renderables)
+                                    .with(Light::new(10, 1.0, RGB::from_u8( 245, 176, 65)), &mut lights)
+                                    .build();
+                        },
+                        TileType::HiveWall => {
+                            let is_front_wall = if y == map.height-1 {
+                                    false
+                                } else {
+                                    map.tiles[x+(y+1) * map.width] != TileType::HiveWall && map.tiles[x+(y+1) * map.width] != TileType::Empty
+                                };
+                            
+                            if is_front_wall {
+                                let _ = entities.build_entity()
+                                    .with(Position::new(x as i32, y as i32), &mut positions)
+                                    .with(Renderable::new(223, RGB::from_u8(247, 220, 111), RGB::from_u8(243, 156, 18), ObjectShader::Foreground, ObjectShader::Foreground), &mut renderables)
+                                    .build();
+                            } else {
+                                let _ = entities.build_entity()
+                                    .with(Position::new(x as i32, y as i32), &mut positions)
+                                    .with(Renderable::new(219, RGB::from_u8(247, 220, 111), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::Foreground, ObjectShader::Background), &mut renderables)
+                                    .build();
+                            }
+                        },
+                         TileType::HiveFloor => {
+                            let _ = entities.build_entity()
+                                .with(Position::new(x as i32, y as i32), &mut positions)
+                                .with(Renderable::new_from_char('.', RGB::from_u8(243, 156, 18), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::Foreground, ObjectShader::Background), &mut renderables)
+                                .build();
+                        },
                         _ => {},
                     }
                 }
             }
-        }
+
     }
 }
 
@@ -137,9 +220,13 @@ fn make_grass (entities: &Entities, positions: &mut WriteStorage<Position>, rend
     }
     
     let char_id = if tall {
-        244
+        if rng.gen_range(0, 100) < 70 {
+            244
+        } else {
+            245
+        } 
     } else {
-        34
+        253
     };
 
 	let _ = entities.build_entity()
@@ -183,4 +270,27 @@ fn make_mushroom (entities: &Entities, positions: &mut WriteStorage<Position>, r
 		.with(Renderable::new(character, color, RGB::from_u8(0, 0, 0), ObjectShader::NoShading, ObjectShader::Background), renderables)
 		.with(Light::new(light_rad, 1.0, color), lights)
 		.build();
+}
+
+fn make_web (entities: &Entities, positions: &mut WriteStorage<Position>, renderables: &mut WriteStorage<Renderable>, thick : bool, rng : &mut StdRng, x: usize, y: usize) {
+    let glyph = if thick {
+        176
+    } else {
+        15
+    };
+
+    let _ = entities.build_entity()
+		.with(Position::new(x as i32, y as i32), positions)
+		.with(Renderable::new(glyph, RGB::from_f32(1.0, 1.0, 1.0), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::Foreground, ObjectShader::Background), renderables)
+		.build();
+
+}
+
+fn make_egg_sac (entities: &Entities, positions: &mut WriteStorage<Position>, renderables: &mut WriteStorage<Renderable>, x: usize, y: usize) {
+    let glyph = 7;
+    let _ = entities.build_entity()
+		.with(Position::new(x as i32, y as i32), positions)
+		.with(Renderable::new(glyph, RGB::from_f32(1.0, 1.0, 1.0), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::Foreground, ObjectShader::Background), renderables)
+		.build();
+
 }

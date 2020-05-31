@@ -24,7 +24,7 @@ impl<'a> System<'a> for LightingSystem {
         for (position, light) in (&positions, &lights).join() {
             light_mask.add_light(&position, &light);
         }
-        light_mask.set_ambient(RGB::from_f32(0.0, 0.0, 0.2));
+        light_mask.set_ambient(map.ambient_light);
 
         light_mask.compute_mask(&map.transparency_map);
 

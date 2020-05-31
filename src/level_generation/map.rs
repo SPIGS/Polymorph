@@ -1,6 +1,8 @@
 use rand::{StdRng, SeedableRng};
 use super::cellular;
+use super::features::FeatureType;
 use tile::*;
+use bracket_lib::prelude::RGB;
 
 #[derive(Debug)]
 pub struct Seed {
@@ -48,7 +50,11 @@ impl Seed {
 
 #[derive(Debug, PartialEq)]
 pub enum MapType {
-	Cavern,
+	Ruins,
+	Caverns,
+	Swamp,
+	Hive,
+	Hell,
 }
 
 #[derive(Debug)]
@@ -60,7 +66,8 @@ pub struct Map {
 	pub hashed_seed: Seed,
 	pub rng : StdRng,
     pub tiles : Vec<TileType>,
-    pub transparency_map : Vec<f32>,
+	pub transparency_map : Vec<f32>,
+	pub ambient_light : RGB,
 }
 
 impl Default for Map {
@@ -71,18 +78,19 @@ impl Default for Map {
 		Map {
             width : 10,
 			height : 10,
-			map_type : MapType::Cavern,
+			map_type : MapType::Caverns,
 			raw_seed : String::from("null"),
 			hashed_seed : hashed_seed,
 			rng : rng,
             tiles : vec![TileType::Empty; 10*10],
-            transparency_map : vec![0.0; 10*10],
+			transparency_map : vec![0.0; 10*10],
+			ambient_light : RGB::from_f32(0.0, 0.0, 0.0),
         }
 	}
 }
 
 impl Map {
-    pub fn new (width : usize, height : usize, raw_seed : String, map_type : MapType) -> Self {
+    pub fn new (width : usize, height : usize, raw_seed : String, map_type : MapType, ambient_light : RGB) -> Self {
 		
 		let hashed_seed = Seed::new(raw_seed.clone());
 		let number_generator : StdRng = SeedableRng::from_seed(hashed_seed.to_256_bit());
@@ -94,17 +102,41 @@ impl Map {
 			hashed_seed : hashed_seed,
 			rng : number_generator,
             tiles : vec![TileType::Empty; width*height],
-            transparency_map : vec![0.0; width*height],
+			transparency_map : vec![0.0; width*height],
+			ambient_light : ambient_light,
         }
 	}
 	
 	pub fn generate (&mut self) {
 		info!("Generating map...");
-		cellular::generate(self.width, self.height, &mut self.tiles, &mut self.transparency_map, &mut self.rng);
+
+		match self.map_type {
+			MapType::Caverns => {
+				let mut generator = cellular::CellularGenerator::new(35, 11, 3, 1);
+				generator.set_flora(TileType::ShortGrass(0), 32);
+				generator.set_liquid(TileType::ShallowWater);
+				generator.set_walls_floors(TileType::Wall, TileType::Floor);
+				generator.set_features(FeatureType::CavernFeatures);
+				generator.generate(self.width, self.height, &mut self.tiles, &mut self.rng);
+			},
+			MapType::Hive => {
+				warn!("Making hive");
+				let mut generator = cellular::CellularGenerator::new(40, 1, 2, 0);
+				generator.set_walls_floors(TileType::HiveWall, TileType::HiveFloor);
+				generator.generate(self.width, self.height, &mut self.tiles, &mut self.rng);
+			},
+			_ => {},
+		}
+
+		//after everything is done, make the transparency map.
+		for i in 0..self.tiles.len() {
+			self.transparency_map[i] = get_tile_transparency(self.tiles[i]);
+		}
 	}
 }
 
 pub mod tile {
+	
 	#[derive(Copy, Clone, Debug, PartialEq)]
 	pub enum TileType {
 		Empty,
@@ -118,6 +150,19 @@ pub mod tile {
 		TallGrass(i32),
 		SmallMushroom,
 		LargeMushroom,
+		ThickWebs,
+		ThinWebs,
+		EggSac,
+		Fire,
+		CampSeat,
+		TentTopRight,
+		TentTopLeft,
+		TentTopCenter,
+		TentBottomCenter,
+		TentBottomLeft,
+		TentBottomRight,
+		HiveWall,
+		HiveFloor,
 	}
 
 	impl Default for TileType {
@@ -129,6 +174,7 @@ pub mod tile {
 		match tile_type {
 			TileType::Wall => false,
 			TileType::DeepLava | TileType::ShallowLava => false,
+			TileType::Empty => false,
 			_ => true,
 		}
 	}
@@ -178,6 +224,21 @@ pub mod tile {
 				error!("Unknown liquid type {:?}", tile_type);
 				panic!("Unknown liquid type {:?}", tile_type);
 			}
+		}
+	}
+
+	pub fn get_tile_transparency (tile_type : TileType) -> f32 {
+		match tile_type {
+			TileType::Wall => 1.0,
+			TileType::TallGrass(_d) => 0.5,
+			TileType::ThickWebs => 0.5,
+			TileType::TentBottomLeft => 1.0,
+			TileType::TentBottomRight => 1.0,
+			TileType::TentTopCenter => 1.0,
+			TileType::TentTopLeft => 1.0,
+			TileType::TentTopRight => 1.0,
+			TileType::HiveWall => 0.75,
+			_ => 0.0,
 		}
 	}
 }
