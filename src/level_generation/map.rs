@@ -51,7 +51,8 @@ impl Seed {
 #[derive(Debug, PartialEq)]
 pub enum MapType {
 	Ruins,
-	Caverns,
+	Cavern,
+	MushroomCavern,
 	Swamp,
 	Hive,
 	Hell,
@@ -78,7 +79,7 @@ impl Default for Map {
 		Map {
             width : 10,
 			height : 10,
-			map_type : MapType::Caverns,
+			map_type : MapType::Cavern,
 			raw_seed : String::from("null"),
 			hashed_seed : hashed_seed,
 			rng : rng,
@@ -111,7 +112,7 @@ impl Map {
 		info!("Generating map...");
 
 		match self.map_type {
-			MapType::Caverns => {
+			MapType::Cavern => {
 				let mut generator = cellular::CellularGenerator::new(35, 11, 3, 1);
 				generator.set_flora(TileType::ShortGrass(0), 32);
 				generator.set_liquid(TileType::ShallowWater, 20, 400);
@@ -120,11 +121,18 @@ impl Map {
 				generator.generate(self.width, self.height, &mut self.tiles, &mut self.rng);
 			},
 			MapType::Hive => {
-				warn!("Making hive");
 				let mut generator = cellular::CellularGenerator::new(40, 1, 2, 0);
 				generator.set_walls_floors(TileType::HiveWall, TileType::HiveFloor);
 				generator.generate(self.width, self.height, &mut self.tiles, &mut self.rng);
 			},
+			MapType::MushroomCavern => {
+				let mut generator = cellular::CellularGenerator::new(35, 11, 3, 1);
+				generator.set_flora(TileType::SmallMushroom, 35);
+				generator.set_liquid(TileType::ShallowWater, 40, 350);
+				generator.set_walls_floors(TileType::Wall, TileType::Floor);
+				generator.set_features(FeatureType::CavernFeatures);
+				generator.generate(self.width, self.height, &mut self.tiles, &mut self.rng);
+			}
 			_ => {},
 		}
 

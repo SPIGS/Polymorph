@@ -46,7 +46,7 @@ impl <'a, 'b> TestState <'a, 'b> {
         world.insert(CurrentInput::default());
 
         let seed = String::from("adsfasds");
-        let mut map = Map::new(100, 100, seed, MapType::Caverns, RGB::from_f32(1.0, 1.0, 1.0));
+        let mut map = Map::new(100, 100, seed, MapType::Cavern, RGB::from_f32(1.0, 1.0, 1.0));
         map.generate();
         world.insert(map);
         

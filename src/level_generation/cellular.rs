@@ -95,7 +95,6 @@ impl CellularGenerator {
 			let regions = get_all_regions(width, height, self.floor, tiles);
 			for region in regions {
 				if region.size > 100 {
-					println!("{}", region.size);
 					possible_camps.push(region.clone());
 				} else if region.size < 20 {
 					possible_nests.push(region.clone());
