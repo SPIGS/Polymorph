@@ -114,7 +114,7 @@ impl Map {
 			MapType::Caverns => {
 				let mut generator = cellular::CellularGenerator::new(35, 11, 3, 1);
 				generator.set_flora(TileType::ShortGrass(0), 32);
-				generator.set_liquid(TileType::ShallowWater);
+				generator.set_liquid(TileType::ShallowWater, 20, 400);
 				generator.set_walls_floors(TileType::Wall, TileType::Floor);
 				generator.set_features(FeatureType::CavernFeatures);
 				generator.generate(self.width, self.height, &mut self.tiles, &mut self.rng);
@@ -173,6 +173,8 @@ pub mod tile {
 	pub fn is_safe (tile_type : TileType) -> bool {
 		match tile_type {
 			TileType::Wall => false,
+			TileType::HiveWall => false,
+			TileType::Fire => false,
 			TileType::DeepLava | TileType::ShallowLava => false,
 			TileType::Empty => false,
 			_ => true,

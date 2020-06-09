@@ -29,6 +29,8 @@ pub struct CellularGenerator {
 	wall : TileType,
 	floor : TileType,
 	liquid : TileType,
+	min_lake_size : usize,
+	max_lake_size : usize,
 	features : FeatureType,
 
 }
@@ -45,6 +47,8 @@ impl CellularGenerator {
 			wall : TileType::Empty,
 			floor : TileType::Empty,
 			liquid : TileType::Empty,
+			min_lake_size : 0,
+			max_lake_size : 0,
 			features : FeatureType::NoFeatures,
 		}
 	}
@@ -59,8 +63,10 @@ impl CellularGenerator {
 		self.floor = floor_type;
 	}
 
-	pub fn set_liquid (&mut self, liquid_type : TileType) {
+	pub fn set_liquid (&mut self, liquid_type : TileType, min_size : usize, max_size : usize) {
 		self.liquid = liquid_type;
+		self.min_lake_size = min_size;
+		self.max_lake_size = max_size;
 	}
 
 	pub fn set_features (&mut self, features : FeatureType) {
@@ -107,7 +113,7 @@ impl CellularGenerator {
 			remove_unseen_walls(width, height, tiles, self.wall, self.floor);
 			
 			if self.liquid != TileType::Empty {
-				make_lakes(width, height, self.liquid, self.floor, tiles, &possible_nests, rng);
+				make_lakes(width, height, self.liquid, self.floor, tiles, &possible_nests, self.min_lake_size, self.max_lake_size, rng);
 			}
 			if self.flora != TileType::Empty {
 				plant(width, height, tiles, rng, self.flora, self.floor, self.floral_density);
@@ -117,12 +123,12 @@ impl CellularGenerator {
 			for region in possible_camps.clone() {
 				make_camp(width, tiles, region);
 			}
+
 			for region in possible_nests.clone() {
 				make_spider_nest(width, tiles, region, rng);
 			}
 			
 			if self.liquid != TileType::Empty {
-				clean_up_regions(width, height, tiles, self.liquid, self.floor, 10);
 				add_lake_depth(width, height, self.liquid, tiles);
 			}
 		}
@@ -234,7 +240,7 @@ pub fn add_map_edges (width : usize, height : usize, tiles : &mut Vec<TileType>,
 }
 
 /// Forms lakes using cellular automata. Panics if the given type is not a liguid.
-pub fn make_lakes (width : usize, height : usize, liquid_type: TileType, floor : TileType, tiles: &mut Vec<TileType>, marked_regions : &Vec<Region>, number_generator: &mut StdRng) {
+pub fn make_lakes (width : usize, height : usize, liquid_type: TileType, floor : TileType, tiles: &mut Vec<TileType>, marked_regions : &Vec<Region>, min_size : usize, max_size : usize, number_generator: &mut StdRng) {
 	use super::map::tile::{shallow_liquid_variant};
 	info!("Forming Lakes...");
 
@@ -267,7 +273,7 @@ pub fn make_lakes (width : usize, height : usize, liquid_type: TileType, floor :
 						lake_map[idx] = floor;
 					}
 				} else {
-					if amount_of_liquid >= 5 {
+					if lake_map[idx] == floor && amount_of_liquid >= 5 {
 						lake_map[idx] = shallow_variant;
 					}
 				}
@@ -281,7 +287,7 @@ pub fn make_lakes (width : usize, height : usize, liquid_type: TileType, floor :
 	debug!("{} lakes generated...", lakes.len());
 	let mut bad_lake_counter = 0;
 	lakes.retain(|a|
-		if (a.size < 20) || (a.size > 400) {
+		if (a.size < min_size) || (a.size > max_size) {
 			bad_lake_counter += 1;
 			false
 		} else {
@@ -333,7 +339,7 @@ pub fn add_lake_depth (width : usize, height : usize, liquid_type: TileType, til
 		for y in 1..height {
 			let amount_of_shallow_liquid = get_surrounding_neighbor_count(width, height, tiles, shallow_variant, x as i32, y as i32);
 			let amount_of_deep_liquid = get_surrounding_neighbor_count(width, height, tiles, deep_variant, x as i32, y as i32);
-			if amount_of_shallow_liquid + amount_of_deep_liquid== 8 {
+			if amount_of_shallow_liquid + amount_of_deep_liquid == 8 {
 				tiles[x+y*width] = deep_variant;
 			}
 		}
