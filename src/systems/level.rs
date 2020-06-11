@@ -1,10 +1,10 @@
 use specs::{WriteStorage, System, Entities, Read};
 use crate::level_generation::map::{Map, MapType};
 use crate::level_generation::map::tile::TileType;
-use crate::components::basic::{Position, Renderable, Light};
+use crate::components::basic::{Position, Renderable, Light, ColorLerp};
 use bracket_lib::prelude::RGB;
 use crate::systems::render::ObjectShader;
-use rand::{StdRng, SeedableRng};
+use rand::{StdRng, SeedableRng, Rng};
 pub struct LevelGenSystem;
 
 impl <'a> System<'a> for LevelGenSystem {
@@ -12,12 +12,13 @@ impl <'a> System<'a> for LevelGenSystem {
         WriteStorage <'a, Position>,
         WriteStorage <'a, Renderable>,
         WriteStorage <'a, Light>,
+        WriteStorage <'a, ColorLerp>,
         Read<'a, Map>,
         Entities<'a>,
     );
 
-    fn run (&mut self, (mut positions, mut renderables, mut lights, map, entities) : Self::SystemData) {
-
+    fn run (&mut self, (mut positions, mut renderables, mut lights, mut colorlerps, map, entities) : Self::SystemData) {
+            use rand::Rng;
             let mut rng : StdRng = SeedableRng::from_seed(map.hashed_seed.to_256_bit());
             for x in 0..map.width {
                 for y in 0..map.height {
@@ -48,15 +49,21 @@ impl <'a> System<'a> for LevelGenSystem {
                             }
                         },
                         TileType::ShallowWater => {
+                            let offset: f32 = rng.gen::<f32>() * 1000.0;
+                            let rate: f32 = rng.gen_range::<f32>(0.5, 1.0) * 3000.0;
                             let _ = entities.build_entity()
                                     .with(Position::new(x as i32, y as i32), &mut positions)
                                     .with(Renderable::new(247, RGB::from_f32(0.6, 0.6, 1.0), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::Foreground, ObjectShader::Background), &mut renderables)
+                                    .with(ColorLerp::new(RGB::from_u8(100, 100, 255), RGB::from_u8(175, 175, 255), rate, offset), &mut colorlerps)
                                     .build();
                         },
                         TileType::DeepWater => {
+                            let offset: f32 = rng.gen::<f32>() * 1000.0;
+                            let rate: f32 = rng.gen_range::<f32>(0.5, 1.0) * 3000.0;
                             let _ = entities.build_entity()
                                     .with(Position::new(x as i32, y as i32), &mut positions)
                                     .with(Renderable::new(247, RGB::from_f32(0.0, 0.0, 1.0), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::Foreground, ObjectShader::Background), &mut renderables)
+                                    .with(ColorLerp::new(RGB::from_u8(165, 165, 245), RGB::from_u8(0, 0, 200), rate, offset), &mut colorlerps)
                                     .build();
                         },
                         TileType::ShallowLava => {
