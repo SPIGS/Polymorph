@@ -56,6 +56,7 @@ pub enum MapType {
 	Swamp,
 	Hive,
 	Hell,
+	Empty,
 }
 
 #[derive(Debug)]
@@ -131,6 +132,12 @@ impl Map {
 				generator.set_liquid(TileType::ShallowWater, 40, 350);
 				generator.set_walls_floors(TileType::Wall, TileType::Floor);
 				generator.set_features(FeatureType::CavernFeatures);
+				generator.generate(self.width, self.height, &mut self.tiles, &mut self.rng);
+			},
+			MapType::Empty => {
+				// this is here as an easy way to test things without changing the other stuff
+				let mut generator = cellular::CellularGenerator::new(0, 0, 0, 0);
+				generator.set_walls_floors(TileType::HiveWall, TileType::HiveFloor);
 				generator.generate(self.width, self.height, &mut self.tiles, &mut self.rng);
 			}
 			_ => {},
