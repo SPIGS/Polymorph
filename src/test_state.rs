@@ -100,9 +100,8 @@ impl <'a, 'b> State for TestState <'a ,'b> {
             .with(Position::new(0, 0))
             .with(PlayerTag)
             .with(Inventory::new())
-            .with(Renderable::new(64, RGB::from_f32(1.0, 1.0, 1.0), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::NoShading, ObjectShader::Background))
-            .with(CycleAnimation::new(1000.0, vec![1,2,3,4]))
-            .with(Light::new(10, 1.0, RGB::from_f32(1.0, 1.0, 1.0)))
+            .with(Renderable::new(64, RGB::from_f32(1.0, 1.0, 1.0), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::Foreground, ObjectShader::Background))
+            .with(Light::new(5, 1.0, RGB::from_f32(1.0, 1.0, 1.0)))
             .with(Actor::new())
             .build();
 
