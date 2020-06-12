@@ -9,7 +9,7 @@ use bracket_lib::prelude::Rect;
 use specs::prelude::{World, WorldExt, Dispatcher, Builder};
 
 use crate::state::{StateAction, State, CurrentInput, DeltaTime};
-use crate::components::basic::{Position, Renderable, Inventory, Currency, Actor, Light};
+use crate::components::basic::{Position, Renderable, Inventory, Currency, Actor, Light, ColorLerp, CycleAnimation};
 use crate::components::tag::PlayerTag;
 use crate::components::gui::{PlayerCard, Panel, Justification};
 
@@ -21,6 +21,7 @@ use crate::systems::lighting::LightingSystem;
 use crate::level_generation::map::{Map, MapType};
 use crate::systems::level::LevelGenSystem;
 use crate::systems::render::ObjectShader;
+use crate::systems::animation::AnimationSystem;
 
 pub struct TestState <'a, 'b>{
     world : World,
@@ -41,12 +42,18 @@ impl <'a, 'b> TestState <'a, 'b> {
         world.register::<PlayerCard>();
         world.register::<Panel>();
         world.register::<Light>();
+        world.register::<ColorLerp>();
+        world.register::<CycleAnimation>();
 
         world.insert(DeltaTime(0.0));
         world.insert(CurrentInput::default());
 
         let seed = String::from("adsfasds");
+<<<<<<< HEAD
         let mut map = Map::new(100, 100, seed, MapType::MushroomCavern, RGB::from_f32(0.0, 0.0, 0.1));
+=======
+        let mut map = Map::new(100, 100, seed, MapType::Cavern, RGB::from_f32(0.0, 0.0, 0.0));
+>>>>>>> animation
         map.generate();
         world.insert(map);
         
@@ -61,6 +68,7 @@ impl <'a, 'b> TestState <'a, 'b> {
                 .with(PlayerMoveSystem, "move_system", &[])
                 .with(PickUpSystem, "pickup_system", &[])
                 .with(GUIUpdate, "gui_update", &[])
+                .with(AnimationSystem, "animation_update", &[])
                 .build();
         update_dispatcher.setup(&mut world);
 
@@ -97,7 +105,11 @@ impl <'a, 'b> State for TestState <'a ,'b> {
             .with(PlayerTag)
             .with(Inventory::new())
             .with(Renderable::new(64, RGB::from_f32(1.0, 1.0, 1.0), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::Foreground, ObjectShader::Background))
+<<<<<<< HEAD
             .with(Light::new(10, 1.0, RGB::from_f32(0.75, 0.53, 0.0)))
+=======
+            .with(Light::new(5, 1.0, RGB::from_f32(1.0, 1.0, 1.0)))
+>>>>>>> animation
             .with(Actor::new())
             .build();
 
