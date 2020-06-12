@@ -198,6 +198,7 @@ impl Light {
 }
 
 #[derive(Component, Debug)]
+#[storage(VecStorage)]
 pub struct ColorLerp {
     pub color_a : RGB,
     pub color_b : RGB,
@@ -227,5 +228,40 @@ impl ColorLerp {
 
     pub fn get_current_color (&self) -> RGB {
         return self.color_a.lerp(self.color_b, self.accumulator / self.rate);
+    }
+}
+
+#[derive(Component, Debug)]
+#[storage(VecStorage)]
+pub struct CycleAnimation {
+    pub rate : f32,
+    pub frames : Vec<u16>,
+    current_frame : usize,
+    accumulator : f32,
+}
+
+impl CycleAnimation {
+    pub fn new (rate : f32, frames : Vec<u16>) -> Self {
+        CycleAnimation {
+            rate : rate,
+            frames : frames,
+            current_frame : 0,
+            accumulator : 0.0,
+        }
+    }
+
+    pub fn cycle (&mut self, delta : f32) {
+        self.accumulator += delta;
+        if self.accumulator / self.rate >= 1.0 {
+            self.accumulator = 0.0;
+            self.current_frame += 1;
+            if self.current_frame == self.frames.len() {
+                self.current_frame = 0;
+            }
+        }
+    }
+
+    pub fn get_current_frame (&self) -> u16 {
+        return self.frames[self.current_frame];
     }
 }

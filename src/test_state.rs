@@ -9,7 +9,7 @@ use bracket_lib::prelude::Rect;
 use specs::prelude::{World, WorldExt, Dispatcher, Builder};
 
 use crate::state::{StateAction, State, CurrentInput, DeltaTime};
-use crate::components::basic::{Position, Renderable, Inventory, Currency, Actor, Light, ColorLerp};
+use crate::components::basic::{Position, Renderable, Inventory, Currency, Actor, Light, ColorLerp, CycleAnimation};
 use crate::components::tag::PlayerTag;
 use crate::components::gui::{PlayerCard, Panel, Justification};
 
@@ -43,6 +43,7 @@ impl <'a, 'b> TestState <'a, 'b> {
         world.register::<Panel>();
         world.register::<Light>();
         world.register::<ColorLerp>();
+        world.register::<CycleAnimation>();
 
         world.insert(DeltaTime(0.0));
         world.insert(CurrentInput::default());
@@ -99,7 +100,8 @@ impl <'a, 'b> State for TestState <'a ,'b> {
             .with(Position::new(0, 0))
             .with(PlayerTag)
             .with(Inventory::new())
-            .with(Renderable::new(64, RGB::from_f32(1.0, 1.0, 1.0), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::Foreground, ObjectShader::Background))
+            .with(Renderable::new(64, RGB::from_f32(1.0, 1.0, 1.0), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::NoShading, ObjectShader::Background))
+            .with(CycleAnimation::new(1000.0, vec![1,2,3,4]))
             .with(Light::new(10, 1.0, RGB::from_f32(1.0, 1.0, 1.0)))
             .with(Actor::new())
             .build();

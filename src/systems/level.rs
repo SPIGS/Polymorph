@@ -67,17 +67,23 @@ impl <'a> System<'a> for LevelGenSystem {
                                     .build();
                         },
                         TileType::ShallowLava => {
+                            let offset: f32 = rng.gen::<f32>() * 2000.0;
+                            let rate: f32 = rng.gen_range::<f32>(0.5, 1.0) * 7500.0;
                             let _ = entities.build_entity()
                                     .with(Position::new(x as i32, y as i32), &mut positions)
                                     .with(Renderable::new(247, RGB::from_f32(1.0, 0.0, 0.0), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::NoShading, ObjectShader::Background), &mut renderables)
                                     .with(Light::new(6, 1.0, RGB::from_f32(1.0, 0.0, 0.0)), &mut lights)
+                                    .with(ColorLerp::new(RGB::from_u8(255, 0, 0), RGB::from_u8(105, 105, 105), rate, offset), &mut colorlerps)
                                     .build();
                         },
                         TileType::DeepLava => {
+                            let offset: f32 = rng.gen::<f32>() * 2000.0;
+                            let rate: f32 = rng.gen_range::<f32>(0.5, 1.0) * 5000.0;
                             let _ = entities.build_entity()
                                     .with(Position::new(x as i32, y as i32), &mut positions)
                                     .with(Renderable::new(247, RGB::from_f32(1.0, 0.5, 0.0), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::NoShading, ObjectShader::Background), &mut renderables)
                                     .with(Light::new(6, 1.0, RGB::from_f32(1.0, 0.5, 0.0)), &mut lights)
+                                    .with(ColorLerp::new(RGB::from_u8(255, 0, 0), RGB::from_u8(255, 175, 0), rate, offset), &mut colorlerps)
                                     .build();
                         },
                         TileType::ShortGrass(d) => {
