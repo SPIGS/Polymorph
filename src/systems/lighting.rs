@@ -27,7 +27,7 @@ impl<'a> System<'a> for LightingSystem {
         light_mask.set_ambient(map.ambient_light);
 
         light_mask.compute_mask(&map.transparency_map);
-
+  
         //apply shading to renderables
         for (position, renderable) in (&positions, &mut renderables).join() {
             if !(renderable.fg_shader == ObjectShader::NoShading && renderable.bg_shader == ObjectShader::NoShading){
@@ -38,7 +38,7 @@ impl<'a> System<'a> for LightingSystem {
                 let b_br = light_mask.b_mask[x + y * light_mask.width] as f32;
                 renderable.shading = RGB::from_f32(r_br, g_br, b_br);
             }
-        }
+        }  
     }
 }
 
@@ -126,6 +126,9 @@ mod lightmask_helper {
     #[derive(Copy, Debug, Clone)]
     pub struct Node {
         pub cost : f32,
+        //? r_cost
+        //? g_cost
+        //? b_cost
         pub pos : (i32,i32),
     }
 
@@ -146,6 +149,7 @@ mod lightmask_helper {
             let x = light_source.pos.0 as usize;
             let y = light_source.pos.1 as usize;
             mask[x+y*width] = -1.0 * light_source.cost / SOME_CONSTANT;
+            //? put light triple in the mask
         }
 
         while !priority_queue.is_empty() {
@@ -174,11 +178,17 @@ mod lightmask_helper {
                             } else {
                                 current_node.cost + distance_to_neighbor
                             };
+                        //? calculate cost for all channels
 
                         //make sure that the calculated cost is lower
+                        //?! DO SEPARATE CHECKS FOR EACH CHANNEL
+                        //? let pushto_to_queue = false;
                         if calculated_cost < distance_map[dx as usize + dy as usize * width] {
+                            //? check cost for all channels
                             distance_map[dx as usize + dy as usize * width] = calculated_cost;
+                            //? set distance map triple for each channel
                             let br = -1.0 * calculated_cost / SOME_CONSTANT;
+                            //? set br for each channel
                             //add node to the brightness map
                             mask[dx as usize + dy as usize * width] = br;
                                 

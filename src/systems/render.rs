@@ -129,7 +129,7 @@ impl <'a> System<'a> for RenderSystem {
             Err(e) => { 
                 error!("Error submitting batch : {}", e);
             },
-        }      
+        }    
     }
 }
 

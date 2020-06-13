@@ -49,11 +49,7 @@ impl <'a, 'b> TestState <'a, 'b> {
         world.insert(CurrentInput::default());
 
         let seed = String::from("adsfasds");
-<<<<<<< HEAD
-        let mut map = Map::new(100, 100, seed, MapType::MushroomCavern, RGB::from_f32(0.0, 0.0, 0.1));
-=======
-        let mut map = Map::new(100, 100, seed, MapType::Cavern, RGB::from_f32(0.0, 0.0, 0.0));
->>>>>>> animation
+        let mut map = Map::new(100, 100, seed, MapType::MushroomCavern, RGB::from_f32(0.0, 0.0, 0.0));
         map.generate();
         world.insert(map);
         
@@ -105,11 +101,7 @@ impl <'a, 'b> State for TestState <'a ,'b> {
             .with(PlayerTag)
             .with(Inventory::new())
             .with(Renderable::new(64, RGB::from_f32(1.0, 1.0, 1.0), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::Foreground, ObjectShader::Background))
-<<<<<<< HEAD
             .with(Light::new(10, 1.0, RGB::from_f32(0.75, 0.53, 0.0)))
-=======
-            .with(Light::new(5, 1.0, RGB::from_f32(1.0, 1.0, 1.0)))
->>>>>>> animation
             .with(Actor::new())
             .build();
 
@@ -155,7 +147,6 @@ impl <'a, 'b> State for TestState <'a ,'b> {
 
     fn render (&mut self, ctx : &mut BTerm) {
       self.render_dispatcher.dispatch(&mut self.world);
-
       let draw_result = render_draw_buffer(ctx);
       match draw_result{
             Ok(_v) => {},
