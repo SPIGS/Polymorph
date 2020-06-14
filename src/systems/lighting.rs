@@ -4,25 +4,43 @@ use specs::{ReadStorage, WriteStorage, System, Read};
 use crate::components::basic::{Light, Position, Renderable};
 use lightmask::LightMask;
 use crate::level_generation::map::Map;
-use crate::systems::render::ObjectShader;
+use crate::systems::render::{ObjectShader};
+use crate::components::tag::PlayerTag;
 
-pub struct LightingSystem;
+pub struct LightingSystem {
+    player_coords : (i32,i32),
+}
+
+impl LightingSystem {
+    pub fn new () -> Self {
+        LightingSystem {
+            player_coords : (0, 0),
+        }
+    }
+}
 
 impl<'a> System<'a> for LightingSystem {
     type SystemData = (
         ReadStorage<'a, Position>,
+        ReadStorage<'a, PlayerTag>,
         WriteStorage<'a, Renderable>,
         ReadStorage<'a, Light>,
         Read<'a, Map>
     );
 
-    fn run(&mut self, (positions, mut renderables, lights, map): Self::SystemData) {
+    fn run(&mut self, (positions, player_tag, mut renderables, lights, map): Self::SystemData) {
         use specs::Join;
 
         let mut light_mask = LightMask::new(map.width, map.height);
+        for (position, _player) in (&positions, &player_tag).join() {
+            self.player_coords = (position.x, position.y);
+        }
 
         for (position, light) in (&positions, &lights).join() {
-            light_mask.add_light(&position, &light);
+            //#! This is an important enough performance save to properly invest in it. Significantly less lights are rendered at a time
+            if !((self.player_coords.0 - position.x).abs() >= 40) && !((self.player_coords.1 - position.y).abs() >= 40) {
+                light_mask.add_light(&position, &light);
+            }
         }
         light_mask.set_ambient(map.ambient_light);
 
@@ -33,9 +51,9 @@ impl<'a> System<'a> for LightingSystem {
             if !(renderable.fg_shader == ObjectShader::NoShading && renderable.bg_shader == ObjectShader::NoShading){
                 let x = position.x as usize;
                 let y = position.y as usize;
-                let r_br = light_mask.r_mask[x + y * light_mask.width] as f32;
-                let g_br = light_mask.g_mask[x + y * light_mask.width] as f32;
-                let b_br = light_mask.b_mask[x + y * light_mask.width] as f32;
+                let r_br = light_mask.mask[x + y * light_mask.width].0 as f32;
+                let g_br = light_mask.mask[x + y * light_mask.width].1 as f32;
+                let b_br = light_mask.mask[x + y * light_mask.width].2 as f32;
                 renderable.shading = RGB::from_f32(r_br, g_br, b_br);
             }
         }  
@@ -49,35 +67,23 @@ pub mod lightmask {
 
     #[derive(Debug)]
     pub struct LightMask {
-        pub r_mask: Vec<f32>,
-        pub g_mask: Vec<f32>,
-        pub b_mask: Vec<f32>,
+        pub mask : Vec<(f32,f32,f32)>,
         pub width: usize,
         pub height: usize,
         ambient_light : RGB,
-        distance_map_r: Vec<f32>,
-        distance_map_g: Vec<f32>,
-        distance_map_b: Vec<f32>,
-        lights_r: Vec<Node>,
-        lights_g: Vec<Node>,
-        lights_b: Vec<Node>,
+        distance_map: Vec<(f32,f32,f32)>,
+        lights: Vec<Node>,
     }
 
     impl LightMask {
         pub fn new(width: usize, height: usize) -> Self {
             LightMask {
-                r_mask: vec![0.0; width * height],
-                g_mask: vec![0.0; width * height],
-                b_mask: vec![0.0; width * height],
+                mask: vec![(0.0, 0.0, 0.0); width * height],
                 width: width,
                 height: height,
                 ambient_light : RGB::from_f32(0.0, 0.0, 0.0),
-                distance_map_r: vec![0.0; width * height],
-                distance_map_g: vec![0.0; width * height],
-                distance_map_b: vec![0.0; width * height],
-                lights_r: Vec::new(),
-                lights_g: Vec::new(),
-                lights_b: Vec::new(),
+                distance_map: vec![(0.0, 0.0, 0.0); width * height],
+                lights: Vec::new(),
             }
         }
 
@@ -88,12 +94,8 @@ pub mod lightmask {
             let cost_r = -1.0 * rad * light.color.r;
             let cost_g = -1.0 * rad * light.color.g;
             let cost_b = -1.0 * rad * light.color.b;
-            self.distance_map_r[x + y * self.width] = cost_r;
-            self.distance_map_g[x + y * self.width] = cost_g;
-            self.distance_map_b[x + y * self.width] = cost_b;
-            self.lights_r.push(Node::new(cost_r, position));
-            self.lights_g.push(Node::new(cost_g, position));
-            self.lights_b.push(Node::new(cost_b, position));
+            self.distance_map[x + y * self.width] = (cost_r, cost_g, cost_b);
+            self.lights.push(Node::new(cost_r, cost_g, cost_b, position));
         }
 
         pub fn set_ambient (&mut self, ambient : RGB) {
@@ -101,18 +103,12 @@ pub mod lightmask {
         }
 
         pub fn compute_mask (&mut self, walls : &Vec<f32>) {
-            compute_channel(self.width, self.height, &self.lights_r, &mut self.distance_map_r, &mut self.r_mask, walls);
-            compute_channel(self.width, self.height, &self.lights_g, &mut self.distance_map_g, &mut self.g_mask, walls);
-            compute_channel(self.width, self.height, &self.lights_b, &mut self.distance_map_b, &mut self.b_mask, walls);
+            compute_channel(self.width, self.height, &self.lights, &mut self.distance_map, &mut self.mask, walls);
 
-            for i in 0..self.r_mask.len() {
-                self.r_mask[i] += self.ambient_light.r;
-            }
-            for i in 0..self.g_mask.len() {
-                self.g_mask[i] += self.ambient_light.g;
-            }
-            for i in 0..self.b_mask.len() {
-                self.b_mask[i] += self.ambient_light.b;
+            for i in 0..self.mask.len() {
+                self.mask[i].0 += self.ambient_light.r;
+                self.mask[i].1 += self.ambient_light.g;
+                self.mask[i].2 += self.ambient_light.b;
             }
         } 
     }
@@ -125,22 +121,27 @@ mod lightmask_helper {
 
     #[derive(Copy, Debug, Clone)]
     pub struct Node {
-        pub cost : f32,
-        //? r_cost
-        //? g_cost
-        //? b_cost
+        pub r_cost : f32,
+        pub g_cost : f32,
+        pub b_cost : f32,
         pub pos : (i32,i32),
     }
 
     impl Node {
-        pub fn new (cost : f32, position : &Position)-> Self {
+        pub fn new (r_cost : f32, g_cost : f32, b_cost : f32, position : &Position)-> Self {
             Node {
-                cost : cost,
+                r_cost : r_cost,
+                g_cost : g_cost,
+                b_cost : b_cost,
                 pos : (position.x, position.y),
             }
         }
+
+        pub fn get_total_cost (&self) -> f32 {
+            return self.r_cost + self.g_cost + self.b_cost;
+        }
     }
-    pub fn compute_channel(width : usize, height : usize, lights : &Vec<Node>, distance_map : &mut Vec<f32>, mask : &mut Vec<f32>, transparency : &Vec<f32>,) {
+    pub fn compute_channel(width : usize, height : usize, lights : &Vec<Node>, distance_map : &mut Vec<(f32, f32, f32)>, mask : &mut Vec<(f32, f32, f32)>, transparency : &Vec<f32>,) {
         let mut priority_queue: Vec<Node> = Vec::new();
         
         //push all the lights to the queue
@@ -148,8 +149,10 @@ mod lightmask_helper {
             priority_queue.push(light_source.clone());
             let x = light_source.pos.0 as usize;
             let y = light_source.pos.1 as usize;
-            mask[x+y*width] = -1.0 * light_source.cost / SOME_CONSTANT;
-            //? put light triple in the mask
+            let r_cost = -1.0 * light_source.r_cost / SOME_CONSTANT;
+            let g_cost = -1.0 * light_source.g_cost / SOME_CONSTANT;
+            let b_cost = -1.0 * light_source.b_cost / SOME_CONSTANT;
+            mask[x+y*width] = (r_cost, g_cost, b_cost);
         }
 
         while !priority_queue.is_empty() {
@@ -171,34 +174,79 @@ mod lightmask_helper {
                         };
 
                         // calculate cost. This makes sure walls are lit but transparency still works.
-                        let calculated_cost =
+                        let calculated_r_cost =
                             if transparency[x as usize + y as usize * width] > 0.0 {
                                 (1.0 - transparency[x as usize + y as usize * width])
-                                    * (current_node.cost + distance_to_neighbor)
+                                    * (current_node.r_cost + distance_to_neighbor)
                             } else {
-                                current_node.cost + distance_to_neighbor
+                                current_node.r_cost + distance_to_neighbor
                             };
-                        //? calculate cost for all channels
+
+                        let calculated_g_cost =
+                            if transparency[x as usize + y as usize * width] > 0.0 {
+                                (1.0 - transparency[x as usize + y as usize * width])
+                                    * (current_node.g_cost + distance_to_neighbor)
+                            } else {
+                                current_node.g_cost + distance_to_neighbor
+                            };
+
+                        let calculated_b_cost =
+                            if transparency[x as usize + y as usize * width] > 0.0 {
+                                (1.0 - transparency[x as usize + y as usize * width])
+                                    * (current_node.b_cost + distance_to_neighbor)
+                            } else {
+                                current_node.b_cost + distance_to_neighbor
+                            };
 
                         //make sure that the calculated cost is lower
-                        //?! DO SEPARATE CHECKS FOR EACH CHANNEL
-                        //? let pushto_to_queue = false;
-                        if calculated_cost < distance_map[dx as usize + dy as usize * width] {
-                            //? check cost for all channels
-                            distance_map[dx as usize + dy as usize * width] = calculated_cost;
-                            //? set distance map triple for each channel
-                            let br = -1.0 * calculated_cost / SOME_CONSTANT;
-                            //? set br for each channel
-                            //add node to the brightness map
-                            mask[dx as usize + dy as usize * width] = br;
-                                
-                            let neighbor_node = Node {
-                                cost: calculated_cost,
-                                pos: (dx, dy),
+                        let mut push_red_channel = false;
+                        let mut push_green_channel = false;
+                        let mut push_blue_channel = false;
+
+                        if calculated_r_cost < distance_map[dx as usize + dy as usize * width].0 {
+                            distance_map[dx as usize + dy as usize * width].0 = calculated_r_cost;
+                            let red_value = -1.0 * calculated_r_cost / SOME_CONSTANT;
+                            mask[dx as usize + dy as usize * width].0 = red_value;
+                            push_red_channel = true;
+                        }
+
+                        if calculated_g_cost < distance_map[dx as usize + dy as usize * width].1 {
+                            distance_map[dx as usize + dy as usize * width].1 = calculated_g_cost;
+                            let green_value = -1.0 * calculated_g_cost / SOME_CONSTANT;
+                            mask[dx as usize + dy as usize * width].1 = green_value;
+                            push_green_channel = true;
+                        }
+
+                        if calculated_b_cost < distance_map[dx as usize + dy as usize * width].2 {
+                            distance_map[dx as usize + dy as usize * width].2 = calculated_b_cost;
+                            let blue_value = -1.0 * calculated_b_cost / SOME_CONSTANT;
+                            mask[dx as usize + dy as usize * width].2 = blue_value;
+                            push_blue_channel = true;
+                        }
+
+                        if push_red_channel || push_green_channel || push_blue_channel {
+                            let mut neighbor_node = Node {
+                                r_cost : 0.0,
+                                g_cost : 0.0,
+                                b_cost : 0.0,
+                                pos : (dx,dy),
                             };
 
+                            if push_red_channel {
+                                neighbor_node.r_cost = calculated_r_cost;
+                            }
+
+                            if push_green_channel {
+                                neighbor_node.g_cost = calculated_g_cost;
+                            }
+
+                            if push_blue_channel {
+                                neighbor_node.b_cost = calculated_b_cost;
+                            }
+
                             priority_queue.push(neighbor_node);
-                            priority_queue.sort_by(|a, b| b.cost.partial_cmp(&a.cost).unwrap());
+                            priority_queue.sort_by(|a, b| b.get_total_cost().partial_cmp(&a.get_total_cost()).unwrap());
+
                         }
                     }
                 }

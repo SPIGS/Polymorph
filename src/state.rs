@@ -153,8 +153,11 @@ impl GameState for Manager {
 
     fn tick (&mut self, ctx: &mut BTerm) {
         let input = self.get_input(ctx);
+        use time::get_current_time_millis;
+        let start = get_current_time_millis();
         let action = self.states[0].update(ctx, input, DeltaTime(ctx.frame_time_ms));
         self.states[0].render(ctx);
+        println!("{}", get_current_time_millis() - start);
 
         match action {
             StateAction::NoAction => {},

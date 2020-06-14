@@ -49,7 +49,7 @@ impl <'a, 'b> TestState <'a, 'b> {
         world.insert(CurrentInput::default());
 
         let seed = String::from("adsfasds");
-        let mut map = Map::new(100, 100, seed, MapType::MushroomCavern, RGB::from_f32(0.0, 0.0, 0.0));
+        let mut map = Map::new(100, 100, seed, MapType::MushroomCavern, RGB::from_f32(0.0, 0.0, 0.2));
         map.generate();
         world.insert(map);
         
@@ -69,7 +69,7 @@ impl <'a, 'b> TestState <'a, 'b> {
         update_dispatcher.setup(&mut world);
 
         let render_system = RenderSystem::new(DrawBatch::new(), ctx.get_char_size());
-        let lighting_system = LightingSystem{};
+        let lighting_system = LightingSystem::new();
         let gui_render_system = GUIRenderSystem::new(DrawBatch::new(), ctx.get_char_size());
 
         let mut render_dispatcher = specs::DispatcherBuilder::new()
