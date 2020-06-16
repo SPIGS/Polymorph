@@ -129,7 +129,7 @@ impl Map {
 			MapType::MushroomCavern => {
 				let mut generator = cellular::CellularGenerator::new(35, 11, 3, 1);
 				generator.set_flora(TileType::SmallMushroom, 35);
-				generator.set_liquid(TileType::ShallowWater, 40, 350);
+				generator.set_liquid(TileType::ShallowLava, 40, 350);
 				generator.set_walls_floors(TileType::Wall, TileType::Floor);
 				generator.set_features(FeatureType::CavernFeatures);
 				generator.generate(self.width, self.height, &mut self.tiles, &mut self.rng);

@@ -11,14 +11,14 @@ use crate::components::gui::{PlayerCard, Justification, Panel};
 use crate::components::tag::PlayerTag;
 use crate::raw::RAW;
 
-// ///Returns true if the given screen coords are on screen.
-// fn on_screen (screen_coords:(i32,i32), screen_size: (i32,i32)) -> bool {
-// 	let mut renderable = true;
-// 	if ((screen_coords.0 < 0) || (screen_coords.0 > screen_size.0)) || ((screen_coords.1 < 0) || (screen_coords.1 > screen_size.1)) {
-// 		renderable = false;
-// 	}
-// 	return renderable;
-// }
+///Returns true if the given screen coords are on screen.
+pub fn is_on_screen (screen_coords:(i32,i32), screen_size: (i32,i32)) -> bool {
+	let mut on_screen = true;
+	if ((screen_coords.0 < 0) || (screen_coords.0 > screen_size.0)) || ((screen_coords.1 < 0) || (screen_coords.1 > screen_size.1)) {
+		on_screen = false;
+	}
+	return on_screen;
+}
 
 #[derive(Debug, PartialEq)]
 pub enum ObjectShader {
@@ -129,7 +129,7 @@ impl <'a> System<'a> for RenderSystem {
             Err(e) => { 
                 error!("Error submitting batch : {}", e);
             },
-        }      
+        }    
     }
 }
 
