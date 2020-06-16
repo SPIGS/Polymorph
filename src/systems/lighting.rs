@@ -38,7 +38,7 @@ impl<'a> System<'a> for LightingSystem {
 
         for (position, light) in (&positions, &lights).join() {
             //#! This is an important enough performance save to properly invest in it. Significantly less lights are rendered at a time
-            if !((self.player_coords.0 - position.x).abs() >= 40) && !((self.player_coords.1 - position.y).abs() >= 40) {
+            if !((self.player_coords.0 - position.x).abs() >= 20) && !((self.player_coords.1 - position.y).abs() >= 20) {
                 light_mask.add_light(&position, &light);
             }
         }
