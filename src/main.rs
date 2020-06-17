@@ -55,7 +55,7 @@ fn main() {
     }
 
     let mut context : BTerm= BTermBuilder::new()
-        .with_dimensions(40, 20)
+        .with_dimensions(80, 40)
         .with_tile_dimensions(8, 12)
         .with_title("Polymorph")
         .with_resource_path("assets")        

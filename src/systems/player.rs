@@ -2,7 +2,7 @@ use specs::{System, ReadStorage, WriteStorage, Read, Entities};
 use bracket_lib::prelude::VirtualKeyCode;
 use crate::components::basic::*;
 use crate::components::tag::PlayerTag;
-use crate::state::CurrentInput;
+use crate::state::PortableContext;
 use crate::raw::*;
 
 pub struct PickUpSystem;
@@ -14,14 +14,14 @@ impl <'a> System <'a> for PickUpSystem {
         ReadStorage <'a, PlayerTag>,
         ReadStorage <'a, Currency>,
         WriteStorage <'a, Inventory>,
-        Read <'a, CurrentInput>,
+        Read <'a, PortableContext>,
         Entities<'a>
     );
 
-    fn run (&mut self, (positions, item_wrappers, player_tag, currencies, mut inventory, current_input, entities) : Self::SystemData) {
+    fn run (&mut self, (positions, item_wrappers, player_tag, currencies, mut inventory, ctx, entities) : Self::SystemData) {
         use specs::Join;
 
-        match current_input.key {
+        match ctx.key {
             Some(VirtualKeyCode::G) => {
                 
                 //get player coords

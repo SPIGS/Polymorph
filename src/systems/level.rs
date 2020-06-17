@@ -18,7 +18,6 @@ impl <'a> System<'a> for LevelGenSystem {
     );
 
     fn run (&mut self, (mut positions, mut renderables, mut lights, mut colorlerps, map, entities) : Self::SystemData) {
-            use rand::Rng;
             let mut rng : StdRng = SeedableRng::from_seed(map.hashed_seed.to_256_bit());
             for x in 0..map.width {
                 for y in 0..map.height {
@@ -99,10 +98,10 @@ impl <'a> System<'a> for LevelGenSystem {
                              make_mushroom(&entities, &mut positions, &mut renderables, &mut lights, true, &mut rng, x, y);
                         },
                         TileType::ThinWebs => {
-                            make_web(&entities, &mut positions, &mut renderables, false, &mut rng, x, y);
+                            make_web(&entities, &mut positions, &mut renderables, false, x, y);
                         },
                         TileType::ThickWebs => {
-                            make_web(&entities, &mut positions, &mut renderables, true, &mut rng, x, y);
+                            make_web(&entities, &mut positions, &mut renderables, true, x, y);
                         },
                         TileType::EggSac => {
                             make_egg_sac(&entities, &mut positions, &mut renderables, x, y);
@@ -191,7 +190,6 @@ impl <'a> System<'a> for LevelGenSystem {
 
 fn make_grass (entities: &Entities, positions: &mut WriteStorage<Position>, renderables: &mut WriteStorage<Renderable>, tall : bool, rng : &mut StdRng, x: usize, y: usize, distance: i32) {
     use bracket_lib::prelude::RgbLerp;
-    use rand::Rng;
 
     let color : RGB;
 
@@ -249,7 +247,6 @@ fn make_grass (entities: &Entities, positions: &mut WriteStorage<Position>, rend
 }
 
 fn make_mushroom (entities: &Entities, positions: &mut WriteStorage<Position>, renderables: &mut WriteStorage<Renderable>, lights : &mut WriteStorage<Light>, large : bool, rng : &mut StdRng, x: usize, y: usize) {
-    use rand::Rng;
     let color: RGB;
 
     let character = if large {
@@ -285,7 +282,7 @@ fn make_mushroom (entities: &Entities, positions: &mut WriteStorage<Position>, r
 		.build();
 }
 
-fn make_web (entities: &Entities, positions: &mut WriteStorage<Position>, renderables: &mut WriteStorage<Renderable>, thick : bool, rng : &mut StdRng, x: usize, y: usize) {
+fn make_web (entities: &Entities, positions: &mut WriteStorage<Position>, renderables: &mut WriteStorage<Renderable>, thick : bool, x: usize, y: usize) {
     let glyph = if thick {
         176
     } else {

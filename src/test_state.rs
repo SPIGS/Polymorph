@@ -8,7 +8,7 @@ use bracket_lib::prelude::Rect;
 //use specs::{Dispatcher, World, Builder};
 use specs::prelude::{World, WorldExt, Dispatcher, Builder};
 
-use crate::state::{StateAction, State, CurrentInput, DeltaTime};
+use crate::state::{StateAction, State, PortableContext, make_portable_ctx};
 use crate::components::basic::{Position, Renderable, Inventory, Currency, Actor, Light, ColorLerp, CycleAnimation};
 use crate::components::tag::PlayerTag;
 use crate::components::gui::{PlayerCard, Panel, Justification};
@@ -45,8 +45,7 @@ impl <'a, 'b> TestState <'a, 'b> {
         world.register::<ColorLerp>();
         world.register::<CycleAnimation>();
 
-        world.insert(DeltaTime(0.0));
-        world.insert(CurrentInput::default());
+        world.insert(PortableContext::default());
 
         let seed = String::from("adsfasds");
         let mut map = Map::new(100, 100, seed, MapType::MushroomCavern, RGB::from_f32(0.0, 0.0, 0.2));
@@ -117,15 +116,12 @@ impl <'a, 'b> State for TestState <'a ,'b> {
 
     fn on_enter (&mut self) {}
 
-    fn update (&mut self, ctx : &mut BTerm, input : CurrentInput, delta_time : DeltaTime) -> StateAction {
+    fn update (&mut self, ctx : &mut BTerm ) -> StateAction {
         {
-        let mut delta = self.world.write_resource::<DeltaTime>();
-        *delta = delta_time;
+        let mut current_input = self.world.write_resource::<PortableContext>();
+        *current_input = make_portable_ctx(ctx);
         }
-        {
-        let mut current_input = self.world.write_resource::<CurrentInput>();
-        *current_input = input;
-        }
+
         self.update_dispatcher.dispatch(&mut self.world);
         self.world.maintain();
         match ctx.key {
