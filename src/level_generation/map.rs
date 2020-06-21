@@ -3,6 +3,8 @@ use super::cellular;
 use super::features::FeatureType;
 use tile::*;
 use bracket_lib::prelude::RGB;
+use bracket_lib::prelude::{Algorithm2D, BaseMap};
+use bracket_lib::prelude::Point;
 
 #[derive(Debug)]
 pub struct Seed {
@@ -59,6 +61,51 @@ pub enum MapType {
 	Empty,
 }
 
+pub struct VisibilityMap {
+	pub width : usize,
+	pub height : usize,
+	pub visible_tiles : Vec<bool>,
+	pub discovered_tiles : Vec<bool>,
+}
+
+impl Default for VisibilityMap {
+	fn default() -> Self {
+		VisibilityMap {
+			width : 10,
+			height : 10,
+			visible_tiles : vec![true; 10 * 10],
+			discovered_tiles : vec![false; 10 * 10],
+		}
+	}
+}
+
+impl VisibilityMap {
+	pub fn new (w : usize, h : usize) -> Self {
+		VisibilityMap {
+			width : w,
+			height : h,
+			visible_tiles : vec![false; w * h],
+			discovered_tiles : vec![false; w * h],
+		}
+	}
+
+	pub fn write (&mut self, pts : Vec<Point>) {
+		for pt in pts {
+			let idx = pt.x as usize + pt.y as usize * self.width;
+			self.visible_tiles[idx] = true;
+			self.discovered_tiles[idx] = true;
+		}
+	}
+
+	pub fn reset_visible (&mut self) {
+		self.visible_tiles = vec![false; self.width * self.height];
+	}
+
+	pub fn reset_discovered (&mut self) {
+		self.discovered_tiles = vec![false; self.width * self.height];
+	}
+}
+
 #[derive(Debug)]
 pub struct Map {
     pub width : usize,
@@ -71,6 +118,26 @@ pub struct Map {
 	pub transparency_map : Vec<f32>,
 	pub ambient_light : RGB,
 }
+
+impl BaseMap for Map {
+	fn is_opaque(&self, idx: usize) -> bool {
+		return self.transparency_map[idx] == 1.0;
+	}
+}
+
+impl Algorithm2D for Map {
+	fn dimensions(&self) -> Point {
+		return Point::from_tuple((self.width, self.height));
+	}
+	fn in_bounds(&self, pos: Point) -> bool {
+		if (pos.x < self.width as i32 && pos.x >= 0) && (pos.y < self.height as i32 && pos.y >= 0) {
+			true
+		} else {
+			false
+		}
+	}
+}
+
 
 impl Default for Map {
 	fn default() -> Self {
@@ -249,11 +316,6 @@ pub mod tile {
 			TileType::Wall => 1.0,
 			TileType::TallGrass(_d) => 0.5,
 			TileType::ThickWebs => 0.5,
-			TileType::TentBottomLeft => 1.0,
-			TileType::TentBottomRight => 1.0,
-			TileType::TentTopCenter => 1.0,
-			TileType::TentTopLeft => 1.0,
-			TileType::TentTopRight => 1.0,
 			TileType::HiveWall => 0.75,
 			_ => 0.0,
 		}

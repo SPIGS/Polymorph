@@ -14,11 +14,11 @@ use crate::components::tag::PlayerTag;
 use crate::components::gui::{PlayerCard, Panel, Justification};
 
 use crate::systems::render::{RenderSystem, GUIRenderSystem};
-use crate::systems::actor::PlayerMoveSystem;
+use crate::systems::actor::{PlayerMoveSystem, VisibilitySystem};
 use crate::systems::player::PickUpSystem;
 use crate::systems::gui::GUIUpdate;
 use crate::systems::lighting::LightingSystem;
-use crate::level_generation::map::{Map, MapType};
+use crate::level_generation::map::{Map, MapType, VisibilityMap};
 use crate::systems::level::LevelGenSystem;
 use crate::systems::render::ObjectShader;
 use crate::systems::animation::AnimationSystem;
@@ -48,9 +48,11 @@ impl <'a, 'b> TestState <'a, 'b> {
         world.insert(PortableContext::default());
 
         let seed = String::from("adsfasds");
-        let mut map = Map::new(100, 100, seed, MapType::MushroomCavern, RGB::from_f32(0.0, 0.0, 0.2));
+        let mut map = Map::new(100, 100, seed, MapType::Cavern, RGB::from_f32(0.0, 0.0, 0.0));
         map.generate();
         world.insert(map);
+
+        world.insert(VisibilityMap::new(100, 100));
         
         let mut level_gen_dispatcher = specs::DispatcherBuilder::new()
                 .with(LevelGenSystem, "level_gen", &[])
@@ -70,8 +72,10 @@ impl <'a, 'b> TestState <'a, 'b> {
         let render_system = RenderSystem::new(DrawBatch::new(), ctx.get_char_size());
         let lighting_system = LightingSystem::new();
         let gui_render_system = GUIRenderSystem::new(DrawBatch::new(), ctx.get_char_size());
+        let visibility_system = VisibilitySystem{};
 
         let mut render_dispatcher = specs::DispatcherBuilder::new()
+                .with(visibility_system, "visibility", &[])
                 .with(lighting_system, "lighting_system", &[])
                 .with(render_system, "render_system", &["lighting_system"])
                 .build();

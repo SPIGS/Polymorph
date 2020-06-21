@@ -1,4 +1,4 @@
-use specs::{System, ReadStorage};
+use specs::{System, ReadStorage, Read};
 use bracket_lib::prelude::DrawBatch;
 use bracket_lib::prelude::Point;
 use bracket_lib::prelude::ColorPair;
@@ -10,6 +10,8 @@ use crate::components::basic::{Position, Renderable, Inventory, Actor};
 use crate::components::gui::{PlayerCard, Justification, Panel};
 use crate::components::tag::PlayerTag;
 use crate::raw::RAW;
+
+use crate::level_generation::map::VisibilityMap;
 
 ///Returns true if the given screen coords are on screen.
 pub fn is_on_screen (screen_coords:(i32,i32), screen_size: (i32,i32)) -> bool {
@@ -53,9 +55,10 @@ impl <'a> System<'a> for RenderSystem {
         ReadStorage <'a, Inventory>,
         ReadStorage <'a, Actor>,
         ReadStorage <'a, PlayerCard>,
+        Read <'a, VisibilityMap>,
     );
 
-    fn run (&mut self, (positions, renderables, player_tag, inventory, actors, player_card) : Self::SystemData) {
+    fn run (&mut self, (positions, renderables, player_tag, inventory, actors, player_card, visibility_map) : Self::SystemData) {
         use specs::Join;
         self.draw_batch.target(0);
         self.draw_batch.cls();
@@ -79,22 +82,37 @@ impl <'a> System<'a> for RenderSystem {
         
         //draw all non actors first
         for (position, renderable, _actor, _player) in (&positions, &renderables, !&actors, !&player_tag).join() {
-            let screen_x = {(self.screen_size.0 as i32 / 2) + (position.x - player_x) + self.horiz_offset};
-            let screen_y = { (self.screen_size.1 as i32 /2) + (position.y - player_y) + self.vert_offset};
+            let idx = position.x as usize + position.y as usize * visibility_map.width;
+            if visibility_map.visible_tiles[idx] {
+                let screen_x = {(self.screen_size.0 as i32 / 2) + (position.x - player_x) + self.horiz_offset};
+                let screen_y = { (self.screen_size.1 as i32 /2) + (position.y - player_y) + self.vert_offset};
 
-            let fg = renderable.get_shaded_foreground();
-            let bg = renderable.get_shaded_background();
-            self.draw_batch.set(Point::new(screen_x, screen_y), ColorPair::new(fg, bg), renderable.glyph);
+                let fg = renderable.get_shaded_foreground();
+                let bg = renderable.get_shaded_background();
+                self.draw_batch.set(Point::new(screen_x, screen_y), ColorPair::new(fg, bg), renderable.glyph);
+
+            } else if visibility_map.discovered_tiles[idx] {
+                
+                let screen_x = {(self.screen_size.0 as i32 / 2) + (position.x - player_x) + self.horiz_offset};
+                let screen_y = { (self.screen_size.1 as i32 /2) + (position.y - player_y) + self.vert_offset};
+
+                let fg = renderable.get_shaded_foreground().to_greyscale();
+                let bg = renderable.get_shaded_background().to_greyscale();
+                self.draw_batch.set(Point::new(screen_x, screen_y), ColorPair::new(fg, bg), renderable.glyph);
+            }
 
         }
         //draw non player actors
         for (position, renderable, _player) in (&positions, &renderables, !&player_tag).join() {
-            let screen_x = {(self.screen_size.0 as i32 / 2) + (position.x - player_x) + self.horiz_offset};
-		    let screen_y = { (self.screen_size.1 as i32 /2) + (position.y - player_y) + self.vert_offset};
-            
-            let fg = renderable.get_shaded_foreground();
-            let bg = renderable.get_shaded_background();
-            self.draw_batch.set(Point::new(screen_x, screen_y), ColorPair::new(fg, bg), renderable.glyph);
+            let idx = position.x as usize + position.y as usize * visibility_map.width;
+            if visibility_map.visible_tiles[idx] {
+                let screen_x = {(self.screen_size.0 as i32 / 2) + (position.x - player_x) + self.horiz_offset};
+                let screen_y = { (self.screen_size.1 as i32 /2) + (position.y - player_y) + self.vert_offset};
+                
+                let fg = renderable.get_shaded_foreground();
+                let bg = renderable.get_shaded_background();
+                self.draw_batch.set(Point::new(screen_x, screen_y), ColorPair::new(fg, bg), renderable.glyph);
+            }
         }
 
         //draw player
