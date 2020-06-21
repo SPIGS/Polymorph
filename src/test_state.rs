@@ -9,7 +9,7 @@ use bracket_lib::prelude::Rect;
 use specs::prelude::{World, WorldExt, Dispatcher, Builder};
 
 use crate::state::{StateAction, State, CurrentInput, DeltaTime};
-use crate::components::basic::{Position, Renderable, Inventory, Currency, Actor, Light, ColorLerp, CycleAnimation};
+use crate::components::basic::{Position, Renderable, Inventory, Currency, Actor, Light, ColorLerp, CycleAnimation, LightFlicker};
 use crate::components::tag::PlayerTag;
 use crate::components::gui::{PlayerCard, Panel, Justification};
 
@@ -44,12 +44,13 @@ impl <'a, 'b> TestState <'a, 'b> {
         world.register::<Light>();
         world.register::<ColorLerp>();
         world.register::<CycleAnimation>();
+        world.register::<LightFlicker>();
 
         world.insert(DeltaTime(0.0));
         world.insert(CurrentInput::default());
 
         let seed = String::from("adsfasds");
-        let mut map = Map::new(100, 100, seed, MapType::MushroomCavern, RGB::from_f32(0.0, 0.0, 0.2));
+        let mut map = Map::new(100, 100, seed, MapType::Cavern, RGB::from_f32(0.0, 0.0, 0.2));
         map.generate();
         world.insert(map);
         

@@ -8,6 +8,9 @@ use crate::systems::render::ObjectShader;
 use crate::raw::ItemRaw;
 use crate::raw::{RAW};
 
+use bracket_lib::prelude::{NoiseType, Interp, FastNoise};
+use bracket_lib::prelude::RandomNumberGenerator;
+
 #[derive(Debug, PartialEq, Component)]
 #[storage(DenseVecStorage)]
 pub struct Position {
@@ -182,7 +185,8 @@ impl Actor {
 #[derive(Component, Debug)]
 #[storage(VecStorage)]
 pub struct Light {
-    pub radius : u32,
+    pub org_rad : u32,
+    pub cur_rad : u32,
     pub intensity : f32,
     pub color : RGB,
 }
@@ -190,7 +194,8 @@ pub struct Light {
 impl Light {
     pub fn new (radius : u32, intensity : f32, color : RGB) -> Self {
         Light {
-            radius : radius,
+            org_rad : radius,
+            cur_rad : radius,
             intensity : intensity,
             color : color,
         }
@@ -263,5 +268,37 @@ impl CycleAnimation {
 
     pub fn get_current_frame (&self) -> u16 {
         return self.frames[self.current_frame];
+    }
+}
+
+#[derive(Component)]
+pub struct LightFlicker {
+    accumulator : i32,
+}
+
+impl LightFlicker {
+    pub fn new () -> Self {
+        LightFlicker {
+            accumulator : 0,
+        }
+    }
+    
+    pub fn next (&mut self) -> f32{
+        
+        let mut noise = FastNoise::new();
+        noise.set_seed(1337);
+        noise.set_noise_type(NoiseType::Perlin);
+        noise.set_interp(Interp::Linear);
+        
+        let noise_val = noise.get_noise(self.accumulator as f32 / 160.0, self.accumulator as f32 / 100.0).abs() * 0.65;
+        let percent = 1.0 - noise_val;
+        
+        self.accumulator += 1;
+        
+        if self.accumulator > 1000 {
+            self.accumulator = 0;
+        }
+
+        return percent;
     }
 }
