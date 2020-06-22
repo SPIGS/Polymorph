@@ -1,7 +1,7 @@
 use bracket_lib::prelude::RGB;
 use specs::{ReadStorage, WriteStorage, System, Read};
 
-use crate::components::basic::{Light, Position, Renderable};
+use crate::components::basic::{Light, Position, Renderable, LightFlicker};
 use lightmask::LightMask;
 use crate::level_generation::map::Map;
 use crate::systems::render::{ObjectShader};
@@ -24,16 +24,22 @@ impl<'a> System<'a> for LightingSystem {
         ReadStorage<'a, Position>,
         ReadStorage<'a, PlayerTag>,
         WriteStorage<'a, Renderable>,
-        ReadStorage<'a, Light>,
-        Read<'a, Map>
+        WriteStorage<'a, LightFlicker>,
+        WriteStorage<'a, Light>,
+        Read<'a, Map>,
     );
 
-    fn run(&mut self, (positions, player_tag, mut renderables, lights, map): Self::SystemData) {
+    fn run(&mut self, (positions, player_tag, mut renderables, mut LightFlickers, mut lights, map): Self::SystemData) {
         use specs::Join;
 
         let mut light_mask = LightMask::new(map.width, map.height);
         for (position, _player) in (&positions, &player_tag).join() {
             self.player_coords = (position.x, position.y);
+        }
+        
+        for (light, LightFlicker) in (&mut lights, &mut LightFlickers).join() {
+            let percent = LightFlicker.next();
+            light.cur_rad = (light.org_rad as f32 * percent) as u32;
         }
 
         for (position, light) in (&positions, &lights).join() {
@@ -42,6 +48,7 @@ impl<'a> System<'a> for LightingSystem {
                 light_mask.add_light(&position, &light);
             }
         }
+
         light_mask.set_ambient(map.ambient_light);
 
         light_mask.compute_mask(&map.transparency_map);
@@ -90,7 +97,7 @@ pub mod lightmask {
         pub fn add_light(&mut self, position : &Position, light : &Light) {
             let x = position.x as usize;
             let y = position.y as usize;
-            let rad = light.radius as f32;
+            let rad = light.cur_rad as f32;
             let cost_r = -1.0 * rad * light.color.r;
             let cost_g = -1.0 * rad * light.color.g;
             let cost_b = -1.0 * rad * light.color.b;

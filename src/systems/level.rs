@@ -1,7 +1,7 @@
 use specs::{WriteStorage, System, Entities, Read};
 use crate::level_generation::map::{Map, MapType};
 use crate::level_generation::map::tile::TileType;
-use crate::components::basic::{Position, Renderable, Light, ColorLerp};
+use crate::components::basic::{Position, Renderable, Light, ColorLerp, LightFlicker};
 use bracket_lib::prelude::RGB;
 use crate::systems::render::ObjectShader;
 use rand::{StdRng, SeedableRng, Rng};
@@ -13,11 +13,13 @@ impl <'a> System<'a> for LevelGenSystem {
         WriteStorage <'a, Renderable>,
         WriteStorage <'a, Light>,
         WriteStorage <'a, ColorLerp>,
+        WriteStorage <'a, LightFlicker>,
         Read<'a, Map>,
         Entities<'a>,
     );
 
-    fn run (&mut self, (mut positions, mut renderables, mut lights, mut colorlerps, map, entities) : Self::SystemData) {
+    fn run (&mut self, (mut positions, mut renderables, mut lights, mut colorlerps, mut light_flickers, map, entities) : Self::SystemData) {
+            use rand::Rng;
             let mut rng : StdRng = SeedableRng::from_seed(map.hashed_seed.to_256_bit());
             for x in 0..map.width {
                 for y in 0..map.height {
@@ -152,7 +154,8 @@ impl <'a> System<'a> for LevelGenSystem {
                             let _ = entities.build_entity()
                                     .with(Position::new(x as i32, y as i32), &mut positions)
                                     .with(Renderable::new(30, RGB::from_u8( 245, 176, 65), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::NoShading, ObjectShader::Background), &mut renderables)
-                                    .with(Light::new(10, 1.0, RGB::from_u8( 245, 176, 65)), &mut lights)
+                                    .with(Light::new(13, 1.0, RGB::from_u8( 245, 176, 65)), &mut lights)
+                                    .with(LightFlicker::new(), &mut light_flickers)
                                     .build();
                         },
                         TileType::HiveWall => {

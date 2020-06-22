@@ -9,7 +9,7 @@ use bracket_lib::prelude::Rect;
 use specs::prelude::{World, WorldExt, Dispatcher, Builder};
 
 use crate::state::{StateAction, State, PortableContext, make_portable_ctx};
-use crate::components::basic::{Position, Renderable, Inventory, Currency, Actor, Light, ColorLerp, CycleAnimation};
+use crate::components::basic::{Position, Renderable, Inventory, Currency, Actor, Light, ColorLerp, CycleAnimation, LightFlicker};
 use crate::components::tag::PlayerTag;
 use crate::components::gui::{PlayerCard, Panel, Justification};
 
@@ -44,6 +44,7 @@ impl <'a, 'b> TestState <'a, 'b> {
         world.register::<Light>();
         world.register::<ColorLerp>();
         world.register::<CycleAnimation>();
+        world.register::<LightFlicker>();
 
         world.insert(PortableContext::default());
 
