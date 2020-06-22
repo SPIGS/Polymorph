@@ -49,7 +49,7 @@ impl <'a, 'b> TestState <'a, 'b> {
         world.insert(PortableContext::default());
 
         let seed = String::from("adsfasds");
-        let mut map = Map::new(100, 100, seed, MapType::Cavern, RGB::from_f32(0.0, 0.0, 0.0));
+        let mut map = Map::new(100, 100, seed, MapType::MushroomCavern, RGB::from_f32(0.0, 0.0, 0.0));
         map.generate();
         world.insert(map);
 

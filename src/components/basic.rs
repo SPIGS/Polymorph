@@ -5,11 +5,9 @@ use std::collections::HashMap;
 
 use crate::systems::render::ObjectShader;
 
-use crate::raw::ItemRaw;
-use crate::raw::{RAW};
+use crate::raw::{ItemRaw, RAW};
 
 use bracket_lib::prelude::{NoiseType, Interp, FastNoise};
-use bracket_lib::prelude::RandomNumberGenerator;
 
 #[derive(Debug, PartialEq, Component)]
 #[storage(DenseVecStorage)]
@@ -272,6 +270,7 @@ impl CycleAnimation {
 }
 
 #[derive(Component)]
+#[storage(VecStorage)]
 pub struct LightFlicker {
     accumulator : i32,
 }

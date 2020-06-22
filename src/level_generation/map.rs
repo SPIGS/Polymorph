@@ -5,6 +5,7 @@ use tile::*;
 use bracket_lib::prelude::RGB;
 use bracket_lib::prelude::{Algorithm2D, BaseMap};
 use bracket_lib::prelude::Point;
+use crate::systems::lighting::lightmask::LightMask;
 
 #[derive(Debug)]
 pub struct Seed {
@@ -66,6 +67,7 @@ pub struct VisibilityMap {
 	pub height : usize,
 	pub visible_tiles : Vec<bool>,
 	pub discovered_tiles : Vec<bool>,
+	pub light_mask : LightMask,
 }
 
 impl Default for VisibilityMap {
@@ -75,6 +77,7 @@ impl Default for VisibilityMap {
 			height : 10,
 			visible_tiles : vec![true; 10 * 10],
 			discovered_tiles : vec![false; 10 * 10],
+			light_mask : LightMask::new(10, 10),
 		}
 	}
 }
@@ -86,14 +89,17 @@ impl VisibilityMap {
 			height : h,
 			visible_tiles : vec![false; w * h],
 			discovered_tiles : vec![false; w * h],
+			light_mask : LightMask::new(w, h),
 		}
 	}
 
 	pub fn write (&mut self, pts : Vec<Point>) {
 		for pt in pts {
 			let idx = pt.x as usize + pt.y as usize * self.width;
-			self.visible_tiles[idx] = true;
-			self.discovered_tiles[idx] = true;
+			let tile_light = self.light_mask.mask[idx];
+			let tile_br = RGB::from_f32(tile_light.0, tile_light.1, tile_light.2).to_hsv().v;
+			self.visible_tiles[idx] = tile_br >= 0.2;
+			self.discovered_tiles[idx] = self.visible_tiles[idx] || self.discovered_tiles[idx];	
 		}
 	}
 

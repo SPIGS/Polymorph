@@ -2,7 +2,7 @@ use specs::{System, ReadStorage, Read};
 use bracket_lib::prelude::DrawBatch;
 use bracket_lib::prelude::Point;
 use bracket_lib::prelude::ColorPair;
-use bracket_lib::prelude::RGB;
+use bracket_lib::prelude::{RGB, HSV};
 use bracket_lib::prelude::Rect;
 use object_pool::Reusable;
 
@@ -83,6 +83,7 @@ impl <'a> System<'a> for RenderSystem {
         //draw all non actors first
         for (position, renderable, _actor, _player) in (&positions, &renderables, !&actors, !&player_tag).join() {
             let idx = position.x as usize + position.y as usize * visibility_map.width;
+
             if visibility_map.visible_tiles[idx] {
                 let screen_x = {(self.screen_size.0 as i32 / 2) + (position.x - player_x) + self.horiz_offset};
                 let screen_y = { (self.screen_size.1 as i32 /2) + (position.y - player_y) + self.vert_offset};
@@ -96,8 +97,11 @@ impl <'a> System<'a> for RenderSystem {
                 let screen_x = {(self.screen_size.0 as i32 / 2) + (position.x - player_x) + self.horiz_offset};
                 let screen_y = { (self.screen_size.1 as i32 /2) + (position.y - player_y) + self.vert_offset};
 
-                let fg = renderable.get_shaded_foreground().to_greyscale();
-                let bg = renderable.get_shaded_background().to_greyscale();
+                let mut fg : RGB = (renderable.fg * RGB::from_f32(0.25, 0.25, 0.25)).to_greyscale();
+                if fg.to_hsv().v < 0.25 {
+                    fg = HSV::from_f32(fg.to_hsv().h, fg.to_hsv().s, fg.to_hsv().v + 0.3).to_rgb();
+                }
+                let bg : RGB= (renderable.bg * RGB::from_f32(0.25, 0.25, 0.25)).to_greyscale();
                 self.draw_batch.set(Point::new(screen_x, screen_y), ColorPair::new(fg, bg), renderable.glyph);
             }
 
@@ -125,21 +129,21 @@ impl <'a> System<'a> for RenderSystem {
             self.draw_batch.set(Point::new(screen_x, screen_y), ColorPair::new(fg, bg), renderable.glyph);
         }
 
-        //draw inventory (temporary)
-        for (_player, invent) in (&player_tag, &inventory).join() {
-            self.draw_batch.print(Point::new(0, 1), "Inventory:123456789");
-            self.draw_batch.print(Point::new(0,2), format!("Gold: ${:.2}", invent.money));
-            if invent.get_size() < 1 {
-                self.draw_batch.print(Point::new(0, 3), "Empty :(");
-            } else {
-                let mut i = 0;
-                for (item_id, amt) in invent.items.iter() {
-                    let item_name = RAW.lock().unwrap().get_item_name(*item_id);
-                    self.draw_batch.print(Point::new(0, 3 + i), format!("{} x{}", item_name, amt));
-                    i += 1;
-                }
-            }
-        }
+        // //draw inventory (temporary)
+        // for (_player, invent) in (&player_tag, &inventory).join() {
+        //     self.draw_batch.print(Point::new(0, 1), "Inventory:123456789");
+        //     self.draw_batch.print(Point::new(0,2), format!("Gold: ${:.2}", invent.money));
+        //     if invent.get_size() < 1 {
+        //         self.draw_batch.print(Point::new(0, 3), "Empty :(");
+        //     } else {
+        //         let mut i = 0;
+        //         for (item_id, amt) in invent.items.iter() {
+        //             let item_name = RAW.lock().unwrap().get_item_name(*item_id);
+        //             self.draw_batch.print(Point::new(0, 3 + i), format!("{} x{}", item_name, amt));
+        //             i += 1;
+        //         }
+        //     }
+        // }
 
         let draw_result = self.draw_batch.submit(0);
         match draw_result {

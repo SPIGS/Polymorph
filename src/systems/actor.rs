@@ -51,7 +51,7 @@ impl <'a> System<'a> for VisibilitySystem {
         for (_player, position) in (&playertag, &positions).join() {
             let pt = Point::from_tuple((position.x, position.y));
             visibility_map.reset_visible();
-            visibility_map.write(field_of_view(pt, 20, &*map));
+            visibility_map.write(field_of_view(pt, 40, &*map));
         }
     }
 }

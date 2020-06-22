@@ -1,9 +1,9 @@
 use bracket_lib::prelude::RGB;
-use specs::{ReadStorage, WriteStorage, System, Read};
+use specs::{ReadStorage, WriteStorage, System, Read, Write};
 
 use crate::components::basic::{Light, Position, Renderable, LightFlicker};
 use lightmask::LightMask;
-use crate::level_generation::map::Map;
+use crate::level_generation::map::{Map, VisibilityMap};
 use crate::systems::render::{ObjectShader};
 use crate::components::tag::PlayerTag;
 
@@ -27,40 +27,43 @@ impl<'a> System<'a> for LightingSystem {
         WriteStorage<'a, LightFlicker>,
         WriteStorage<'a, Light>,
         Read<'a, Map>,
+        Write<'a, VisibilityMap>,
     );
 
-    fn run(&mut self, (positions, player_tag, mut renderables, mut LightFlickers, mut lights, map): Self::SystemData) {
+    fn run(&mut self, (positions, player_tag, mut renderables, mut light_flickers, mut lights, map, mut visibility_map): Self::SystemData) {
         use specs::Join;
 
-        let mut light_mask = LightMask::new(map.width, map.height);
+        visibility_map.light_mask = LightMask::new(map.width, map.height);
         for (position, _player) in (&positions, &player_tag).join() {
             self.player_coords = (position.x, position.y);
         }
         
-        for (light, LightFlicker) in (&mut lights, &mut LightFlickers).join() {
-            let percent = LightFlicker.next();
+        for (light, light_flicker) in (&mut lights, &mut light_flickers).join() {
+            let percent = light_flicker.next();
             light.cur_rad = (light.org_rad as f32 * percent) as u32;
         }
 
         for (position, light) in (&positions, &lights).join() {
-            //#! This is an important enough performance save to properly invest in it. Significantly less lights are rendered at a time
-            if !((self.player_coords.0 - position.x).abs() >= 20) && !((self.player_coords.1 - position.y).abs() >= 20) {
-                light_mask.add_light(&position, &light);
+            let idx = (position.x + position.y * visibility_map.width as i32) as usize;
+            if !((self.player_coords.0 - position.x).abs() >= 20) && !((self.player_coords.1 - position.y).abs() >= 20) || visibility_map.visible_tiles[idx] {
+                visibility_map.light_mask.add_light(&position, &light);
+            } else if visibility_map.visible_tiles[idx]  {
+                visibility_map.light_mask.add_light(&position, &light);
             }
         }
 
-        light_mask.set_ambient(map.ambient_light);
+        visibility_map.light_mask.set_ambient(map.ambient_light);
 
-        light_mask.compute_mask(&map.transparency_map);
+        visibility_map.light_mask.compute_mask(&map.transparency_map);
   
         //apply shading to renderables
         for (position, renderable) in (&positions, &mut renderables).join() {
             if !(renderable.fg_shader == ObjectShader::NoShading && renderable.bg_shader == ObjectShader::NoShading){
                 let x = position.x as usize;
                 let y = position.y as usize;
-                let r_br = light_mask.mask[x + y * light_mask.width].0 as f32;
-                let g_br = light_mask.mask[x + y * light_mask.width].1 as f32;
-                let b_br = light_mask.mask[x + y * light_mask.width].2 as f32;
+                let r_br = visibility_map.light_mask.mask[x + y * visibility_map.light_mask.width].0 as f32;
+                let g_br = visibility_map.light_mask.mask[x + y * visibility_map.light_mask.width].1 as f32;
+                let b_br = visibility_map.light_mask.mask[x + y * visibility_map.light_mask.width].2 as f32;
                 renderable.shading = RGB::from_f32(r_br, g_br, b_br);
             }
         }  
