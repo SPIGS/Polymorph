@@ -155,7 +155,7 @@ impl <'a> System<'a> for LevelGenSystem {
                                     .with(Position::new(x as i32, y as i32), &mut positions)
                                     .with(Renderable::new(30, RGB::from_u8( 245, 176, 65), RGB::from_f32(0.0, 0.0, 0.0), ObjectShader::NoShading, ObjectShader::Background), &mut renderables)
                                     .with(Light::new(13, 1.0, RGB::from_u8( 245, 176, 65)), &mut lights)
-                                    .with(LightFlicker::new(), &mut light_flickers)
+                                    .with(LightFlicker::new(10.0), &mut light_flickers)
                                     .build();
                         },
                         TileType::HiveWall => {

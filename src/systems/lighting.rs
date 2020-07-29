@@ -6,6 +6,7 @@ use lightmask::LightMask;
 use crate::level_generation::map::{Map, VisibilityMap};
 use crate::systems::render::{ObjectShader};
 use crate::components::tag::PlayerTag;
+use crate::state::PortableContext;
 
 pub struct LightingSystem {
     player_coords : (i32,i32),
@@ -27,10 +28,11 @@ impl<'a> System<'a> for LightingSystem {
         WriteStorage<'a, LightFlicker>,
         WriteStorage<'a, Light>,
         Read<'a, Map>,
+        Read<'a, PortableContext>,
         Write<'a, VisibilityMap>,
     );
 
-    fn run(&mut self, (positions, player_tag, mut renderables, mut light_flickers, mut lights, map, mut visibility_map): Self::SystemData) {
+    fn run(&mut self, (positions, player_tag, mut renderables, mut light_flickers, mut lights, map, ctx, mut visibility_map): Self::SystemData) {
         use specs::Join;
 
         visibility_map.light_mask = LightMask::new(map.width, map.height);
@@ -39,7 +41,7 @@ impl<'a> System<'a> for LightingSystem {
         }
         
         for (light, light_flicker) in (&mut lights, &mut light_flickers).join() {
-            let percent = light_flicker.next();
+            let percent = light_flicker.next(ctx.delta);
             light.cur_rad = (light.org_rad as f32 * percent) as u32;
         }
 

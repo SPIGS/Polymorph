@@ -145,6 +145,10 @@ impl <'a> System<'a> for RenderSystem {
         //     }
         // }
 
+        // for (_player, position) in (&player_tag, &positions).join() {
+        //     self.draw_batch.print(Point::new(10, self.screen_size.1 /2), format!("X: {}; Y:{};", position.x, position.y));
+        // }
+
         let draw_result = self.draw_batch.submit(0);
         match draw_result {
             Ok(_v) => {},

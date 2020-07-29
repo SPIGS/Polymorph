@@ -272,31 +272,38 @@ impl CycleAnimation {
 #[derive(Component)]
 #[storage(VecStorage)]
 pub struct LightFlicker {
-    accumulator : i32,
+    pub rate: f32,
+    pub current_step : i32,
+    accumulator : f32,
 }
 
 impl LightFlicker {
-    pub fn new () -> Self {
+    pub fn new (rate : f32) -> Self {
         LightFlicker {
-            accumulator : 0,
+            rate : rate,
+            current_step : 0,
+            accumulator : 0.0,
         }
     }
     
-    pub fn next (&mut self) -> f32{
+    pub fn next (&mut self, delta : f32) -> f32{
+        
+        self.accumulator += delta;
+        if self.accumulator / self.rate >= 1.0 {
+            self.accumulator = 0.0;
+            self.current_step += 1;
+            if self.current_step == 1000 {
+                self.current_step = 0;
+            }
+        }
         
         let mut noise = FastNoise::new();
         noise.set_seed(1337);
         noise.set_noise_type(NoiseType::Perlin);
         noise.set_interp(Interp::Linear);
         
-        let noise_val = noise.get_noise(self.accumulator as f32 / 160.0, self.accumulator as f32 / 100.0).abs() * 0.65;
+        let noise_val = noise.get_noise(self.current_step as f32 / 160.0, self.current_step as f32 / 100.0).abs() * 0.65;
         let percent = 1.0 - noise_val;
-        
-        self.accumulator += 1;
-        
-        if self.accumulator > 1000 {
-            self.accumulator = 0;
-        }
 
         return percent;
     }
