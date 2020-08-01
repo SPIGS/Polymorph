@@ -282,14 +282,16 @@ impl PlayerCard {
         }
     }
 }
-
+#[derive(Component, Debug)]
+#[storage(VecStorage)]
+pub struct DebugInfoBox;
 
 pub struct TextBoxBuilder {
     max_width : usize,
     max_height : usize,
     raw_text : String,
     animated : bool,
-    focused : bool,
+    close_on_end : bool,
 }
 
 impl TextBoxBuilder {
@@ -299,7 +301,7 @@ impl TextBoxBuilder {
             max_height : 0,
             raw_text : String::default(),
             animated : false,
-            focused : true,
+            close_on_end : true,
         }
     }
 
@@ -325,8 +327,8 @@ impl TextBoxBuilder {
         self
     }
 
-    pub fn is_focused (mut self, focused : bool) -> Self {
-        self.focused = focused;
+    pub fn is_close_on_end (mut self, close : bool) -> Self {
+        self.close_on_end = close;
         self
     }
 
@@ -358,7 +360,9 @@ impl TextBoxBuilder {
             max_height : self.max_height,
             is_animated : self.animated,
             done_animating : !self.animated,
-            is_waiting : false,
+            waiting_on_proceed : false,
+            waiting_on_close : false,
+            close_on_end : self.close_on_end,
             accumulator : 0.0,
             rate: 50.0,
             character : 0,
@@ -377,7 +381,9 @@ pub struct TextBox {
     pub max_height : usize,
     pub is_animated : bool,
     pub done_animating : bool,
-    pub is_waiting : bool,
+    pub waiting_on_proceed : bool,
+    pub waiting_on_close : bool,
+    close_on_end : bool,
     accumulator : f32,
     rate : f32,
     character : usize,
@@ -418,14 +424,14 @@ impl TextBox {
 
     pub fn animate_step (&mut self, delta : f32) {
         self.accumulator += delta;
-        if !self.is_waiting {
+        if !self.waiting_on_proceed {
             if self.accumulator / self.rate >= 1.0 {
                     self.character += 1;
                     if self.character == self.lines[self.line].len() {
                         self.line += 1;
                         self.character = 0;
                         if self.line == self.max_height {
-                            self.is_waiting = true;
+                            self.waiting_on_proceed = true;
                             warn!("waiting");
                         }
                     }
@@ -436,12 +442,15 @@ impl TextBox {
         let adj_line = self.page * self.max_height;
         if self.character >= self.lines[self.lines.len()-1].len() && (adj_line + self.line) >= self.lines.len() && self.page >= self.total_pages {
             self.done_animating = true;
+            if self.close_on_end {
+                self.waiting_on_close = true;
+            }
             warn!("Animation done!!");
         }
     }
 
     pub fn proceed (&mut self) {
-        self.is_waiting = false;
+        self.waiting_on_proceed = false;
         self.page += 1;
         self.line = 0;
     }

@@ -1,4 +1,4 @@
-use specs::{System, WriteStorage, ReadStorage, Read};
+use specs::{System, WriteStorage, ReadStorage, Read, Entities};
 use bracket_lib::prelude::VirtualKeyCode;
 use crate::components::gui::*;
 use crate::state::PortableContext;
@@ -15,9 +15,10 @@ impl <'a> System <'a> for GUIUpdate {
         WriteStorage <'a, Panel>,
         WriteStorage <'a, TextBox>,
         Read <'a, PortableContext>,
+        Entities<'a>
     );
 
-    fn run (&mut self, (actors, player_tag, mut player_card, mut panels, mut textboxes, ctx) : Self::SystemData) {
+    fn run (&mut self, (actors, player_tag, mut player_card, mut panels, mut textboxes, ctx, entities) : Self::SystemData) {
         use specs::Join;
 
 
@@ -29,9 +30,20 @@ impl <'a> System <'a> for GUIUpdate {
                 } 
             },
             Some(VirtualKeyCode::Space) => {
-                for textbx in (&mut textboxes).join() {
-                    if textbx.is_waiting {
+                for (textbx, e) in (&mut textboxes, &entities).join() {
+                    if textbx.waiting_on_proceed {
                         textbx.proceed();
+                    } else if textbx.waiting_on_close {
+                        let del_result = entities.delete(e);
+                        match del_result {
+                            Ok(_t) => {
+                                debug!("Textbox closed.");
+                            },
+                            Err(e) => {
+                                error!("{}", e);
+                                error!("Error closing textbox.");
+                            },
+                        }
                     }
                 }
             },

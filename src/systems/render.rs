@@ -239,6 +239,10 @@ impl GUIRenderSystem {
                     self.draw_batch.print(Point::new(x, y + i as i32), textbox.lines[i].clone());
                 }
             }
+
+            if textbox.waiting_on_close { 
+                self.draw_batch.print(Point::new(x, textbox.max_height as i32 + 2), "[SPACE to close]");
+            }
         } else {
             let adj_line = textbox.current_page() * textbox.max_height;
 
@@ -249,7 +253,7 @@ impl GUIRenderSystem {
             printed_chars.truncate(textbox.current_character());
             self.draw_batch.print(Point::new(x, y + textbox.current_line() as i32), printed_chars);
 
-            if textbox.is_waiting {
+            if textbox.waiting_on_proceed {
                 self.draw_batch.print(Point::new(x, textbox.max_height as i32 + 2), "[SPACE to continue]");
             }
         }
