@@ -7,7 +7,7 @@ use bracket_lib::prelude::Rect;
 use object_pool::Reusable;
 
 use crate::components::basic::{Position, Renderable, Inventory, Actor};
-use crate::components::gui::{PlayerCard, Justification, Panel};
+use crate::components::gui::{PlayerCard, HorizontalAlignment, VerticalAlignment, Panel, TextBox};
 use crate::components::tag::PlayerTag;
 use crate::raw::RAW;
 
@@ -63,11 +63,12 @@ impl <'a> System<'a> for RenderSystem {
         self.draw_batch.target(0);
         self.draw_batch.cls();
 
+        //TODO add default offset incase gui isnt there
         //get offset from gui
-        for card in (&player_card).join() {
-            self.horiz_offset = match card.justification {
-                Justification::RIGHT => -(self.screen_size.0 as i32/8),
-                Justification::LEFT => (self.screen_size.0 as i32/8),
+        for (card) in (&player_card).join() {
+            self.horiz_offset = match card.alignment {
+                HorizontalAlignment::RIGHT => -(self.screen_size.0 as i32/8),
+                HorizontalAlignment::LEFT => (self.screen_size.0 as i32/8),
                 _ => 0,
             }
         }
@@ -203,7 +204,42 @@ impl GUIRenderSystem {
         if with_decoration {
             self.draw_batch.set(Point::from((position.0 + (width + offset), position.1)), ColorPair::new(RGB::named(bracket_lib::prelude::WHITE), bg), 195);
         }
+    }
 
+    pub fn draw_panel (&mut self, panel : &Panel) {
+        //get the border color
+        let border_color : RGB = if panel.decorated {
+                panel.decor_color
+            } else {
+                RGB::from_u8(0,0,0)
+            };
+
+        //draw the panel
+        self.draw_batch.draw_double_box(Rect::with_size(panel.x, panel.y, panel.width, panel.height), ColorPair::new(border_color, panel.panel_color));
+        
+        //print title if the panel has one
+        match &panel.title {
+            Some(t) => {
+                self.draw_batch.print_color_centered_at(Point::new(panel.horizontal_center(), panel.y), t, ColorPair::new(panel.title_color, panel.panel_color));
+            },
+            None => {},
+        }
+    }
+
+    pub fn draw_textbox (&mut self, textbox : &TextBox, x : i32, y : i32) {
+        let length = textbox.lines.len();
+        if textbox.done_animating {
+            for i in 0..length {
+                self.draw_batch.print(Point::new(x, y + i as i32), textbox.lines[i].clone());
+            }
+        } else {
+            for i in 0..textbox.l() {
+                self.draw_batch.print(Point::new(x, y + i as i32), textbox.lines[i].clone());
+            }
+            let mut printed_chars = textbox.lines[textbox.l()].clone();
+            printed_chars.truncate(textbox.c());
+            self.draw_batch.print(Point::new(x, y + textbox.l() as i32), printed_chars);
+        }
     }
 }
 
@@ -212,37 +248,46 @@ impl <'a> System<'a> for GUIRenderSystem {
         ReadStorage <'a, PlayerTag>,
         ReadStorage <'a, Actor>,
         ReadStorage <'a, PlayerCard>,
-        ReadStorage <'a, Panel>
+        ReadStorage <'a, Panel>,
+        ReadStorage<'a, TextBox>,
     );
 
-    fn run (&mut self, (player_tag, actors, player_card, panels) : Self::SystemData) {
+    fn run (&mut self, (player_tag, actors, player_card, panels, textboxes) : Self::SystemData) {
         use specs::Join;
         self.draw_batch.target(0);
 
-        for (card, panel) in (&player_card, &panels).join() {
-            let mut enabled = true;
-            let mut x_coord = 0;
-            match card.justification {
-                Justification::RIGHT => x_coord = self.screen_size.0 - (panel.width()+1) as u32,
-                Justification::LEFT => x_coord = 0,
-                _ => enabled = false,
+        // panels
+        for panel in (&panels).join() {
+            if panel.enabled {
+                self.draw_panel(&panel);
             }
-            if enabled {
-                self.draw_batch.draw_double_box(Rect::with_size(x_coord, 0, panel.width() as u32, self.screen_size.1-1), ColorPair::new(RGB::from_u8(255, 255, 255), RGB::from_u8(50, 50, 50)));
-                //draw player stats (temporary)
-                for (_player, player_actor) in (&player_tag, &actors).join() {
-                    self.draw_batch.print(Point::new(x_coord+1, 1), format!("STR:{}", player_actor.strength));
-                    self.draw_batch.print(Point::new(x_coord+1, 2), format!("DEX:{}", player_actor.dexterity));
-                    self.draw_batch.print(Point::new(x_coord+1, 3), format!("CON:{}", player_actor.constitution));
-                    self.draw_batch.print(Point::new(x_coord+1, 4), format!("WIS:{}", player_actor.wisdom));
-                    self.draw_batch.print(Point::new(x_coord+1, 5), format!("INT:{}", player_actor.intelligence));
-                    let hp_info = format!("HP:{}/{}", player_actor.current_health, player_actor.max_health);
-                    self.draw_bar_horizontal((0,0), 10, player_actor.current_health, player_actor.max_health, RGB::from_u8(255, 0, 0), RGB::from_u8(0, 0, 0) , true);
-                    self.draw_batch.print(Point::new(x_coord+1, 6), hp_info.clone());       
-                }
-            }
-            
         }
+
+        // textboxes
+        for (textbx, panel) in (&textboxes, &panels).join() {
+            if panel.enabled {
+                self.draw_textbox(textbx, panel.x+1, panel.y+1);
+            }
+        }
+
+        // for (_card, panel) in (&player_card, &panels).join() {
+        //     if panel.enabled {
+        //         //draw player stats (temporary)
+        //         for (_player, player_actor) in (&player_tag, &actors).join() {
+        //             let hp_info = format!("HP:{}/{}", player_actor.current_health, player_actor.max_health);
+        //             self.draw_batch.print(Point::new(panel.x + 1, 1), hp_info.clone());
+        //             self.draw_bar_horizontal((panel.x + 1, 2), 10, player_actor.current_health, player_actor.max_health, RGB::from_u8(255, 0, 0), RGB::from_u8(0, 0, 0) , true);
+                    
+        //             self.draw_batch.print(Point::new(panel.x + 1, 4), format!("STR:{}", player_actor.strength));
+        //             self.draw_batch.print(Point::new(panel.x + 1, 5), format!("DEX:{}", player_actor.dexterity));
+        //             self.draw_batch.print(Point::new(panel.x + 1, 6), format!("CON:{}", player_actor.constitution));
+        //             self.draw_batch.print(Point::new(panel.x + 1, 7), format!("WIS:{}", player_actor.wisdom));
+        //             self.draw_batch.print(Point::new(panel.x + 1, 8), format!("INT:{}", player_actor.intelligence));
+        //             self.draw_batch.print(Point::new(panel.x + 1, 9), format!("01234567890123456789012345"));
+                           
+        //         }
+        //     }
+        // }
 
         let draw_result = self.draw_batch.submit(1);
         match draw_result {

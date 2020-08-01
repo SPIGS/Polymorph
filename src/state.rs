@@ -28,6 +28,7 @@ pub struct PortableContext {
     pub control: bool,
     pub alt: bool,
     pub quitting: bool,
+    pub screen_size : (u32, u32),
 }
 
 impl Default for PortableContext {
@@ -42,13 +43,14 @@ impl Default for PortableContext {
             control: false,
             alt: false,
             quitting: false,
+            screen_size : (0, 0),
         }
     }
 }
 
 pub trait State {
     /// Called when this state is pushed to the stack.
-    fn init(&mut self);
+    fn init(&mut self, ctx : &mut BTerm);
     /// Called when this state become the top of the stack.
     fn on_enter(&mut self);
     /// Called routinely.
@@ -71,7 +73,7 @@ impl Manager {
     }
 
     /// Pushes a new state to the top of the stack.
-    pub fn push(&mut self, state: Box<dyn State>, message: Option<String>) {
+    pub fn push(&mut self, state: Box<dyn State>, message: Option<String>, ctx : &mut BTerm) {
         info!("Pushing state");
         match message {
             Some(msg) => {
@@ -80,7 +82,7 @@ impl Manager {
             _ => {}
         }
         self.states.push_front(state);
-        self.states[0].init();
+        self.states[0].init(ctx);
     }
 
     /// Pops the state from the top of the stack. If no states are left on the stack,
@@ -116,7 +118,7 @@ impl Manager {
     }
 
     /// Pops and replaces the state at the top of the stack with a new state.
-    pub fn switch(&mut self, state: Box<dyn State>, message: Option<String>) {
+    pub fn switch(&mut self, state: Box<dyn State>, message: Option<String>, ctx : &mut BTerm) {
         info!("Switching states");
         match message {
             Some(msg) => {
@@ -125,7 +127,7 @@ impl Manager {
             _ => {}
         }
         self.pop(Option::None);
-        self.push(state, Option::None);
+        self.push(state, Option::None, ctx);
         info!("Switching state")
     }
 
@@ -149,8 +151,8 @@ impl GameState for Manager {
             StateAction::NoAction => {}
             StateAction::Pop(msg) => self.pop(msg),
             StateAction::PopAmount(number, msg) => self.pop_amount(number, msg),
-            StateAction::Push(new_state, msg) => self.push(new_state, msg),
-            StateAction::Switch(new_state, msg) => self.switch(new_state, msg),
+            StateAction::Push(new_state, msg) => self.push(new_state, msg, ctx),
+            StateAction::Switch(new_state, msg) => self.switch(new_state, msg, ctx),
             StateAction::Exit => self.exit(),
         }
 
@@ -172,6 +174,7 @@ pub fn make_portable_ctx (ctx: &mut BTerm) -> PortableContext {
         control: ctx.control,
         alt: ctx.alt,
         quitting: ctx.quitting,
+        screen_size : ctx.get_char_size(),
     }
 }
 

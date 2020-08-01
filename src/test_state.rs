@@ -11,7 +11,7 @@ use specs::prelude::{World, WorldExt, Dispatcher, Builder};
 use crate::state::{StateAction, State, PortableContext, make_portable_ctx};
 use crate::components::basic::{Position, Renderable, Inventory, Currency, Actor, Light, ColorLerp, CycleAnimation, LightFlicker};
 use crate::components::tag::PlayerTag;
-use crate::components::gui::{PlayerCard, Panel, Justification};
+use crate::components::gui::{PlayerCard, Panel, HorizontalAlignment,VerticalAlignment, PanelBuilder, TextBoxBuilder, TextBox};
 
 use crate::systems::render::{RenderSystem, GUIRenderSystem};
 use crate::systems::actor::{PlayerMoveSystem, VisibilitySystem};
@@ -45,6 +45,7 @@ impl <'a, 'b> TestState <'a, 'b> {
         world.register::<ColorLerp>();
         world.register::<CycleAnimation>();
         world.register::<LightFlicker>();
+        world.register::<TextBox>();
 
         world.insert(PortableContext::default());
 
@@ -99,7 +100,7 @@ impl <'a, 'b> TestState <'a, 'b> {
 
 impl <'a, 'b> State for TestState <'a ,'b> {
 
-    fn init (&mut self) {
+    fn init (&mut self, ctx : &mut BTerm) {
         //create player
         self.world.create_entity()
             .with(Position::new(0, 0))
@@ -110,11 +111,56 @@ impl <'a, 'b> State for TestState <'a ,'b> {
             .with(Actor::new())
             .build();
 
-        let player_card_bounds = Rect::with_size(0, 0, self.screen_size.0/4, self.screen_size.1);
+        let panel = PanelBuilder::new()
+                            .width_percentage(25)
+                            .height_percentage(100)
+                            .with_horiz_align(HorizontalAlignment::RIGHT)
+                            .with_vert_align(VerticalAlignment::CENTER)
+                            .is_decorated(true)
+                            .title(String::from("Title"))
+                            .title_color(RGB::from_u8(255, 0, 0))
+                            .build(ctx.get_char_size());
+        
+        let info_box = TextBoxBuilder::new()
+                            .max_width(20)
+                            .max_height(40)
+                            .text(String::default())
+                            .build();
 
         self.world.create_entity()
-            .with(Panel::new(player_card_bounds, true, Justification::RIGHT, Option::None))
+            .with(panel)
             .with(PlayerCard::new())
+            .with(info_box)
+            .build();
+
+        let test_panel = PanelBuilder::new()
+                            .width_exact(50)
+                            .height_exact(10)
+                            .with_horiz_align(HorizontalAlignment::LEFT)
+                            .with_vert_align(VerticalAlignment::TOP)
+                            .is_decorated(true)
+                            .build(ctx.get_char_size());
+        let raw_text = r"
+            If you are a dreamer, come in, \n
+            If you are a dreamer, a wisher, a liar, \n
+            A hope-er, a pray-er, a magic bean buyer... \n
+            If you're a pretender, come sit by my fire \n
+            For we have some flax-golden tales to spin. \n
+            Come in! \n
+            Come in! \n
+        ";
+
+
+        let test_box = TextBoxBuilder::new()
+                            .max_width(48)
+                            .max_height(10)
+                            .text(String::from(raw_text))
+                            .is_animated(true)
+                            .build();
+
+        self.world.create_entity()
+            .with(test_panel)
+            .with(test_box)
             .build();
 
         info!("Initialized state");
