@@ -28,6 +28,13 @@ impl <'a> System <'a> for GUIUpdate {
                     card.cycle_alignment(panel, ctx.screen_size.0);
                 } 
             },
+            Some(VirtualKeyCode::Space) => {
+                for textbx in (&mut textboxes).join() {
+                    if textbx.is_waiting {
+                        textbx.proceed();
+                    }
+                }
+            },
             _ => {}
         }
 

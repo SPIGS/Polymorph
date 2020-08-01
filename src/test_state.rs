@@ -141,19 +141,27 @@ impl <'a, 'b> State for TestState <'a ,'b> {
                             .is_decorated(true)
                             .build(ctx.get_char_size());
         let raw_text = r"
-            If you are a dreamer, come in, \n
-            If you are a dreamer, a wisher, a liar, \n
-            A hope-er, a pray-er, a magic bean buyer... \n
-            If you're a pretender, come sit by my fire \n
-            For we have some flax-golden tales to spin. \n
-            Come in! \n
-            Come in! \n
+            0 \n
+            1 \n
+            2 \n
+            3 \n
+            4 \n
+            5 \n
+            6 \n
+            7 \n
+            8 \n
+            9 \n
+            10 \n
+            11 \n
+            12 \n
+            13 \n
+            14 \n
         ";
 
 
         let test_box = TextBoxBuilder::new()
                             .max_width(48)
-                            .max_height(10)
+                            .max_height(7)
                             .text(String::from(raw_text))
                             .is_animated(true)
                             .build();

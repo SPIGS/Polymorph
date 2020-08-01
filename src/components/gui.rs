@@ -262,6 +262,8 @@ impl PlayerCard {
     }
 
     pub fn cycle_alignment (&mut self, panel : &mut Panel, screen_width : u32) {
+        
+        // this component changes another component! THIS IS BAD!!
         match panel.get_horiz_align() {
             HorizontalAlignment::RIGHT => {
                 panel.set_horiz_align(HorizontalAlignment::LEFT, screen_width);
@@ -287,6 +289,7 @@ pub struct TextBoxBuilder {
     max_height : usize,
     raw_text : String,
     animated : bool,
+    focused : bool,
 }
 
 impl TextBoxBuilder {
@@ -296,6 +299,7 @@ impl TextBoxBuilder {
             max_height : 0,
             raw_text : String::default(),
             animated : false,
+            focused : true,
         }
     }
 
@@ -321,6 +325,11 @@ impl TextBoxBuilder {
         self
     }
 
+    pub fn is_focused (mut self, focused : bool) -> Self {
+        self.focused = focused;
+        self
+    }
+
     pub fn build (self) -> TextBox{
         let tokens = self.raw_text.split_whitespace();
 
@@ -340,17 +349,22 @@ impl TextBoxBuilder {
                 }
             }
         }
+        
         lines.push(cur_line.clone());
-
+        let pages = lines.len() / self.max_height;
         TextBox {
             lines : lines,
             max_width : self.max_width,
+            max_height : self.max_height,
             is_animated : self.animated,
             done_animating : !self.animated,
+            is_waiting : false,
             accumulator : 0.0,
             rate: 50.0,
-            c : 0,
-            l : 0,
+            character : 0,
+            line : 0,
+            page : 0,
+            total_pages : pages,
         }
     }
 }
@@ -360,12 +374,16 @@ impl TextBoxBuilder {
 pub struct TextBox {
     pub lines : Vec<String>,
     pub max_width : usize,
+    pub max_height : usize,
     pub is_animated : bool,
     pub done_animating : bool,
+    pub is_waiting : bool,
     accumulator : f32,
     rate : f32,
-    c : usize,
-    l : usize,
+    character : usize,
+    line : usize,
+    page : usize,
+    total_pages : usize,
 }
 
 impl TextBox {
@@ -400,26 +418,48 @@ impl TextBox {
 
     pub fn animate_step (&mut self, delta : f32) {
         self.accumulator += delta;
-        if self.accumulator / self.rate >= 1.0 {
-            self.c += 1;
-            if self.c >= self.lines[self.l].len() {
-                self.l += 1;
-                self.c = 0;
+        if !self.is_waiting {
+            if self.accumulator / self.rate >= 1.0 {
+                    self.character += 1;
+                    if self.character == self.lines[self.line].len() {
+                        self.line += 1;
+                        self.character = 0;
+                        if self.line == self.max_height {
+                            self.is_waiting = true;
+                            warn!("waiting");
+                        }
+                    }
+            
+                self.accumulator = 0.0;
             }
-            self.accumulator = 0.0;
         }
-
-        if self.c >= self.lines[self.lines.len()-1].len() && self.l >= self.lines.len() {
+        let adj_line = self.page * self.max_height;
+        if self.character >= self.lines[self.lines.len()-1].len() && (adj_line + self.line) >= self.lines.len() && self.page >= self.total_pages {
             self.done_animating = true;
+            warn!("Animation done!!");
         }
     }
 
-    pub fn l (&self) -> usize {
-        self.l
+    pub fn proceed (&mut self) {
+        self.is_waiting = false;
+        self.page += 1;
+        self.line = 0;
     }
 
-    pub fn c (&self) -> usize {
-        self.c
+    pub fn current_line (&self) -> usize {
+        self.line
+    }
+
+    pub fn current_character (&self) -> usize {
+        self.character
+    }
+
+    pub fn current_page (&self) -> usize {
+        self.page
+    }
+
+    pub fn total_pages (&self) -> usize {
+        self.total_pages
     }
 }
 
