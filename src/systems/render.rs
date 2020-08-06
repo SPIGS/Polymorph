@@ -227,35 +227,9 @@ impl GUIRenderSystem {
     }
 
     pub fn draw_textbox (&mut self, textbox : &TextBox, x : i32, y : i32) {
-        let length = textbox.lines.len();
-        if textbox.done_animating {
-            if textbox.total_pages() > 0 {
-                let adj_line = textbox.current_page() * textbox.max_height;
-                for i in adj_line..(adj_line + textbox.current_line()) {
-                    self.draw_batch.print(Point::new(x, y + (i - adj_line) as i32), textbox.lines[i].clone());
-                }
-            } else {
-                for i in 0..length {
-                    self.draw_batch.print(Point::new(x, y + i as i32), textbox.lines[i].clone());
-                }
-            }
-
-            if textbox.waiting_on_close { 
-                self.draw_batch.print(Point::new(x, textbox.max_height as i32 + 2), "[SPACE to close]");
-            }
-        } else {
-            let adj_line = textbox.current_page() * textbox.max_height;
-
-            for i in adj_line..(adj_line + textbox.current_line()) {
-                self.draw_batch.print(Point::new(x, y + (i - adj_line) as i32), textbox.lines[i].clone());
-            }
-            let mut printed_chars = textbox.lines[adj_line + textbox.current_line()].clone();
-            printed_chars.truncate(textbox.current_character());
-            self.draw_batch.print(Point::new(x, y + textbox.current_line() as i32), printed_chars);
-
-            if textbox.waiting_on_proceed {
-                self.draw_batch.print(Point::new(x, textbox.max_height as i32 + 2), "[SPACE to continue]");
-            }
+        info!("character:{} \nline:{}\npage:{}", textbox.current_character(), textbox.current_line(), textbox.current_page());
+        for line in textbox.stream.clone() {
+            info!("{}", line);
         }
     }
 }

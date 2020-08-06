@@ -292,6 +292,7 @@ pub struct TextBoxBuilder {
     raw_text : String,
     animated : bool,
     close_on_end : bool,
+    focused : bool,
 }
 
 impl TextBoxBuilder {
@@ -302,6 +303,7 @@ impl TextBoxBuilder {
             raw_text : String::default(),
             animated : false,
             close_on_end : true,
+            focused : true,
         }
     }
 
@@ -332,6 +334,11 @@ impl TextBoxBuilder {
         self
     }
 
+    pub fn is_focused (mut self, focused : bool) -> Self {
+        self.focused = focused;
+        self
+    }
+
     pub fn build (self) -> TextBox{
         let tokens = self.raw_text.split_whitespace();
 
@@ -353,7 +360,8 @@ impl TextBoxBuilder {
         }
         
         lines.push(cur_line.clone());
-        let pages = lines.len() / self.max_height;
+        let lines_len = lines.len();
+        let pages = (lines.len() / self.max_height);
         TextBox {
             lines : lines,
             max_width : self.max_width,
@@ -362,6 +370,8 @@ impl TextBoxBuilder {
             done_animating : !self.animated,
             waiting_on_proceed : false,
             waiting_on_close : false,
+            is_focused : self.focused,
+            stream : vec![String::default(); lines_len],
             close_on_end : self.close_on_end,
             accumulator : 0.0,
             rate: 50.0,
@@ -383,6 +393,8 @@ pub struct TextBox {
     pub done_animating : bool,
     pub waiting_on_proceed : bool,
     pub waiting_on_close : bool,
+    pub is_focused : bool,
+    pub stream : Vec<String>,
     close_on_end : bool,
     accumulator : f32,
     rate : f32,
@@ -398,7 +410,7 @@ impl TextBox {
         raw_text = raw_text.replace('\n', "");
         raw_text = raw_text.replace('\t', "");
         raw_text = raw_text.replace('\r', "");
-
+        raw_text = String::from(raw_text.trim_end_matches(r"\n"));
         let tokens = raw_text.split_whitespace();
 
         let mut new_lines : Vec<String> = Vec::new();
@@ -418,34 +430,32 @@ impl TextBox {
             }
         }
         new_lines.push(cur_line.clone());
-
+        
         self.lines = new_lines;
     }
 
     pub fn animate_step (&mut self, delta : f32) {
         self.accumulator += delta;
-        if !self.waiting_on_proceed {
+        if !self.done_animating {
             if self.accumulator / self.rate >= 1.0 {
-                    self.character += 1;
-                    if self.character == self.lines[self.line].len() {
-                        self.line += 1;
+                self.character += 1;
+                if self.character >= self.lines[self.line].len() {
+                    self.line += 1;
+                    self.character = 0;
+                    if self.line >= self.max_height {
                         self.character = 0;
-                        if self.line == self.max_height {
-                            self.waiting_on_proceed = true;
-                            warn!("waiting");
-                        }
+                        self.page = self.page + 1;
+                        warn!("New page!")
                     }
-            
+                }
                 self.accumulator = 0.0;
             }
         }
-        let adj_line = self.page * self.max_height;
-        if self.character >= self.lines[self.lines.len()-1].len() && (adj_line + self.line) >= self.lines.len() && self.page >= self.total_pages {
+        self.stream[self.line] = String::from(&self.lines[self.line][0..self.character]);
+        let adj_line = (self.page * (self.max_height-1)) + self.line;
+        if self.character >= self.lines[adj_line].len() && self.line >= self.lines.len() && self.page >= self.total_pages {
             self.done_animating = true;
-            if self.close_on_end {
-                self.waiting_on_close = true;
-            }
-            warn!("Animation done!!");
+            warn!("Done animating!!");
         }
     }
 
@@ -453,6 +463,7 @@ impl TextBox {
         self.waiting_on_proceed = false;
         self.page += 1;
         self.line = 0;
+        self.character = 0;
     }
 
     pub fn current_line (&self) -> usize {

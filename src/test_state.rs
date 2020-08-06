@@ -8,10 +8,10 @@ use bracket_lib::prelude::Rect;
 //use specs::{Dispatcher, World, Builder};
 use specs::prelude::{World, WorldExt, Dispatcher, Builder};
 
-use crate::state::{StateAction, State, PortableContext, make_portable_ctx};
+use crate::state::{StateAction, State, PortableContext, make_portable_ctx, WorldState, CurrentWorldState};
 use crate::components::basic::{Position, Renderable, Inventory, Currency, Actor, Light, ColorLerp, CycleAnimation, LightFlicker};
 use crate::components::tag::PlayerTag;
-use crate::components::gui::{PlayerCard, Panel, HorizontalAlignment,VerticalAlignment, PanelBuilder, TextBoxBuilder, TextBox};
+use crate::components::gui::{PlayerCard, Panel, HorizontalAlignment,VerticalAlignment, PanelBuilder, TextBoxBuilder, TextBox, DebugInfoBox};
 
 use crate::systems::render::{RenderSystem, GUIRenderSystem};
 use crate::systems::actor::{PlayerMoveSystem, VisibilitySystem};
@@ -46,8 +46,10 @@ impl <'a, 'b> TestState <'a, 'b> {
         world.register::<CycleAnimation>();
         world.register::<LightFlicker>();
         world.register::<TextBox>();
+        world.register::<DebugInfoBox>();
 
         world.insert(PortableContext::default());
+        world.insert(CurrentWorldState(WorldState::NoAction));
 
         let seed = String::from("adsfasds");
         let mut map = Map::new(100, 100, seed, MapType::Cavern, RGB::from_f32(0.0, 0.0, 0.0));
@@ -111,64 +113,60 @@ impl <'a, 'b> State for TestState <'a ,'b> {
             .with(Actor::new())
             .build();
 
-        let panel = PanelBuilder::new()
-                            .width_percentage(25)
-                            .height_percentage(100)
-                            .with_horiz_align(HorizontalAlignment::RIGHT)
-                            .with_vert_align(VerticalAlignment::CENTER)
-                            .is_decorated(true)
-                            .title(String::from("Title"))
-                            .title_color(RGB::from_u8(255, 0, 0))
-                            .build(ctx.get_char_size());
+        // let panel = PanelBuilder::new()
+        //                     .width_percentage(25)
+        //                     .height_percentage(100)
+        //                     .with_horiz_align(HorizontalAlignment::RIGHT)
+        //                     .with_vert_align(VerticalAlignment::CENTER)
+        //                     .is_decorated(true)
+        //                     .title(String::from("Title"))
+        //                     .title_color(RGB::from_u8(255, 0, 0))
+        //                     .build(ctx.get_char_size());
         
-        let info_box = TextBoxBuilder::new()
-                            .max_width(20)
-                            .max_height(40)
-                            .text(String::default())
-                            .build();
+        // let info_box = TextBoxBuilder::new()
+        //                     .max_width(20)
+        //                     .max_height(40)
+        //                     .text(String::default())
+        //                     .is_focused(false)
+        //                     .build();
 
-        self.world.create_entity()
-            .with(panel)
-            .with(PlayerCard::new())
-            .with(info_box)
-            .build();
+        // self.world.create_entity()
+        //     .with(panel)
+        //     .with(PlayerCard::new())
+        //     .with(info_box)
+        //     .build();
 
         let test_panel = PanelBuilder::new()
-                            .width_exact(50)
-                            .height_exact(10)
+                            .width_percentage(80)
+                            .height_exact(8)
                             .with_horiz_align(HorizontalAlignment::LEFT)
                             .with_vert_align(VerticalAlignment::TOP)
                             .is_decorated(true)
                             .build(ctx.get_char_size());
-        let raw_text = r"
-            0 \n
-            1 \n
-            2 \n
-            3 \n
-            4 \n
-            5 \n
-            6 \n
-            7 \n
-            8 \n
-            9 \n
-            10 \n
-            11 \n
-            12 \n
-            13 \n
-            14 \n
+
+        let poem = r"
+           A \n
+           AB \n
+           ABC \n
+           ABCD \n
+           ABCDE \n
+           ABCDEF \n
+           ABCDEFG \n
         ";
 
 
-        let test_box = TextBoxBuilder::new()
-                            .max_width(48)
-                            .max_height(7)
-                            .text(String::from(raw_text))
+        let test_text = TextBoxBuilder::new()
+                            .max_width(50)
+                            .max_height(6)
+                            .text(String::from(poem))
                             .is_animated(true)
+                            .is_close_on_end(true)
+                            .is_focused(true)
                             .build();
 
         self.world.create_entity()
             .with(test_panel)
-            .with(test_box)
+            .with(test_text)
             .build();
 
         info!("Initialized state");

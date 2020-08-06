@@ -1,5 +1,4 @@
 use bracket_lib::prelude::{BTerm, GameState, VirtualKeyCode};
-use std::collections::HashMap;
 use std::collections::VecDeque;
 
 pub enum StateAction {
@@ -11,10 +10,19 @@ pub enum StateAction {
     Exit,
 }
 
-pub enum WorldAction {
+#[derive(Clone, PartialEq, Debug)]
+pub enum WorldState {
     NoAction,
-    PassInventory(HashMap<u32, u32>),
-    PlayerEquipItem(u32),
+    TextBoxFocused,
+}
+
+#[derive(Clone, Default, Debug)]
+pub struct CurrentWorldState (pub WorldState); 
+
+impl Default for WorldState {
+    fn default() -> WorldState {
+        WorldState::NoAction
+    }
 }
 
 ///read only context that can be cloned and passed between threads and sytems safely
