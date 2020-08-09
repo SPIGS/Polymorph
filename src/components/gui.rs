@@ -341,44 +341,53 @@ impl TextBoxBuilder {
 
     pub fn build (self) -> TextBox{
         let tokens = self.raw_text.split_whitespace();
-
-        let mut lines : Vec<String> = Vec::new();
-        let mut cur_line : String = String::default();
+        let mut pages : Vec<String> = Vec::new();
+        let mut new_string = String::new();
+        let mut number_of_pages = 0;
+        let mut page_length = 0;
+        let max_page_length = ((self.max_width as i32 - 1) * self.max_height as i32) - 3 * (self.max_width as i32 / 2);
         for token in tokens {
-            if token == r"\n" {
-                lines.push(cur_line.clone());
-                cur_line = String::default();
+            if page_length + token.len() <= max_page_length as usize {
+                page_length += token.len() + 1;
+                new_string.push_str(token);
+                new_string.push_str(" ");
             } else {
-                if token.len() + cur_line.len() <= self.max_width {
-                    cur_line.push_str(token);
-                    cur_line.push(' ');
-                } else {
-                    lines.push(cur_line.clone());
-                    cur_line = String::default();
-                }
+                number_of_pages += 1;
+                page_length = 0;
+                pages.push(new_string);
+                new_string = String::new();
             }
         }
-        
-        lines.push(cur_line.clone());
-        let lines_len = lines.len();
-        let pages = (lines.len() / self.max_height);
-        TextBox {
-            lines : lines,
+        pages.push(new_string);
+        let mut start_position = 0;
+        if !self.animated {
+            start_position = pages[0].len();
+        }
+
+        let mut proceed = false;
+        if !self.animated && pages.len() > 1 {
+            proceed = true;
+        }
+
+        let mut close = false;
+        if !self.animated && pages.len() == 1 {
+            close = true;
+        }
+
+        TextBox {        
+            text: pages,
             max_width : self.max_width,
             max_height : self.max_height,
             is_animated : self.animated,
-            done_animating : !self.animated,
-            waiting_on_proceed : false,
-            waiting_on_close : false,
-            is_focused : self.focused,
-            stream : vec![String::default(); lines_len],
+            done_animating : false,
+            waiting_on_proceed : proceed,
+            waiting_on_close : close,
             close_on_end : self.close_on_end,
             accumulator : 0.0,
             rate: 50.0,
-            character : 0,
-            line : 0,
-            page : 0,
-            total_pages : pages,
+            position : start_position,
+            pages : number_of_pages,
+            current_page : 0,
         }
     }
 }
@@ -386,100 +395,62 @@ impl TextBoxBuilder {
 #[derive(Component, Debug)]
 #[storage(VecStorage)]
 pub struct TextBox {
-    pub lines : Vec<String>,
+    pub text : Vec<String>,
     pub max_width : usize,
     pub max_height : usize,
     pub is_animated : bool,
     pub done_animating : bool,
     pub waiting_on_proceed : bool,
     pub waiting_on_close : bool,
-    pub is_focused : bool,
-    pub stream : Vec<String>,
-    close_on_end : bool,
+    pub close_on_end : bool,
     accumulator : f32,
     rate : f32,
-    character : usize,
-    line : usize,
-    page : usize,
-    total_pages : usize,
+    pub position : usize,
+    pub pages : usize,
+    pub current_page : usize,
 }
 
 impl TextBox {
-    pub fn update_text (&mut self, new_text : String) {
-        let mut raw_text = new_text;
-        raw_text = raw_text.replace('\n', "");
-        raw_text = raw_text.replace('\t', "");
-        raw_text = raw_text.replace('\r', "");
-        raw_text = String::from(raw_text.trim_end_matches(r"\n"));
-        let tokens = raw_text.split_whitespace();
-
-        let mut new_lines : Vec<String> = Vec::new();
-        let mut cur_line : String = String::default();
-        for token in tokens {
-            if token == r"\n" {
-                new_lines.push(cur_line.clone());
-                cur_line = String::default();
-            } else {
-                if token.len() + cur_line.len() <= self.max_width {
-                    cur_line.push_str(token);
-                    cur_line.push(' ');
-                } else {
-                    new_lines.push(cur_line.clone());
-                    cur_line = String::default();
-                }
-            }
-        }
-        new_lines.push(cur_line.clone());
-        
-        self.lines = new_lines;
-    }
 
     pub fn animate_step (&mut self, delta : f32) {
         self.accumulator += delta;
-        if !self.done_animating {
+        if !self.done_animating && !self.waiting_on_proceed {
             if self.accumulator / self.rate >= 1.0 {
-                self.character += 1;
-                if self.character >= self.lines[self.line].len() {
-                    self.line += 1;
-                    self.character = 0;
-                    if self.line >= self.max_height {
-                        self.character = 0;
-                        self.page = self.page + 1;
-                        warn!("New page!")
+                self.position += 1;
+                if self.position >= self.text[self.current_page].len() {
+                    self.position -= 1;
+                    if self.current_page + 1 < self.text.len() {
+                        debug!("new page - waiting");
+                        self.waiting_on_proceed = true;
+                    } else {
+                        self.done_animating = true;
+                        self.waiting_on_close = true;
+                        debug!("Done animating - waiting on close.");
                     }
                 }
                 self.accumulator = 0.0;
             }
-        }
-        self.stream[self.line] = String::from(&self.lines[self.line][0..self.character]);
-        let adj_line = (self.page * (self.max_height-1)) + self.line;
-        if self.character >= self.lines[adj_line].len() && self.line >= self.lines.len() && self.page >= self.total_pages {
-            self.done_animating = true;
-            warn!("Done animating!!");
-        }
+        } 
     }
 
     pub fn proceed (&mut self) {
-        self.waiting_on_proceed = false;
-        self.page += 1;
-        self.line = 0;
-        self.character = 0;
+        self.current_page += 1;
+        if self.is_animated {
+            self.waiting_on_proceed = false;
+            self.position = 0;
+        } else {
+            if self.current_page < self.text.len() {
+                self.waiting_on_proceed = true;
+                self.position = self.text[self.current_page].len();
+            } else {
+                self.current_page -= 1;
+                debug!("Waiting on close.");
+                self.waiting_on_proceed = false;
+                self.waiting_on_close = true;
+            }
+        }
+        
     }
 
-    pub fn current_line (&self) -> usize {
-        self.line
-    }
-
-    pub fn current_character (&self) -> usize {
-        self.character
-    }
-
-    pub fn current_page (&self) -> usize {
-        self.page
-    }
-
-    pub fn total_pages (&self) -> usize {
-        self.total_pages
-    }
 }
 

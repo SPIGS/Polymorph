@@ -144,23 +144,15 @@ impl <'a, 'b> State for TestState <'a ,'b> {
                             .is_decorated(true)
                             .build(ctx.get_char_size());
 
-        let poem = r"
-           A \n
-           AB \n
-           ABC \n
-           ABCD \n
-           ABCDE \n
-           ABCDEF \n
-           ABCDEFG \n
-        ";
+        let poem = r"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
 
 
         let test_text = TextBoxBuilder::new()
                             .max_width(50)
-                            .max_height(6)
+                            .max_height(7)
                             .text(String::from(poem))
-                            .is_animated(true)
-                            .is_close_on_end(true)
+                            .is_animated(false)
+                            .is_close_on_end(false)
                             .is_focused(true)
                             .build();
 

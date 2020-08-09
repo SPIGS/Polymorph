@@ -4,6 +4,7 @@ use bracket_lib::prelude::Point;
 use bracket_lib::prelude::ColorPair;
 use bracket_lib::prelude::{RGB, HSV};
 use bracket_lib::prelude::Rect;
+use bracket_lib::prelude::{TextBuilder, TextBlock};
 use object_pool::Reusable;
 
 use crate::components::basic::{Position, Renderable, Inventory, Actor};
@@ -227,9 +228,17 @@ impl GUIRenderSystem {
     }
 
     pub fn draw_textbox (&mut self, textbox : &TextBox, x : i32, y : i32) {
-        info!("character:{} \nline:{}\npage:{}", textbox.current_character(), textbox.current_line(), textbox.current_page());
-        for line in textbox.stream.clone() {
-            info!("{}", line);
+        let mut block = TextBlock::new(x,y, textbox.max_width as i32 -5, textbox.max_height as i32);
+        let mut buf = TextBuilder::empty();
+        buf.line_wrap(&textbox.text[textbox.current_page][0..textbox.position]);
+        block.print(&buf);
+        block.render_to_draw_batch(&mut self.draw_batch);
+        if textbox.waiting_on_proceed {
+            self.draw_batch.print(Point::new(x + 1, y + textbox.max_height as i32), "Press SPACE to continue");
+        }
+
+        if textbox.waiting_on_close && textbox.close_on_end {
+            self.draw_batch.print(Point::new(x + 1, y + textbox.max_height as i32), "Press SPACE to close");
         }
     }
 }
