@@ -1,5 +1,5 @@
-use specs::{Component, VecStorage, DenseVecStorage};
-use bracket_lib::prelude::{Rect, Point, RGB};
+use specs::{Component, VecStorage};
+use bracket_lib::prelude::{Rect, RGB, TextBuilder};
 
 #[derive(Debug, Copy, Clone)]
 pub enum HorizontalAlignment {
@@ -138,7 +138,7 @@ impl PanelBuilder {
         } else {
             self.width
         };
-        warn!("{}", panel_width);
+
         let panel_height = if self.height_percent {
             ((self.height as f32 / 100.0) * screen_size.1 as f32) as i32 - 1
             
@@ -284,7 +284,9 @@ impl PlayerCard {
 }
 #[derive(Component, Debug)]
 #[storage(VecStorage)]
-pub struct DebugInfoBox;
+pub struct DebugInfoBox {
+    pub seed : String,
+}
 
 pub struct TextBoxBuilder {
     max_width : usize,
@@ -307,12 +309,12 @@ impl TextBoxBuilder {
         }
     }
 
-    pub fn max_width (mut self, width : usize) -> Self {
+    pub fn width_exact (mut self, width : usize) -> Self {
         self.max_width = width;
         self
     }
 
-    pub fn max_height (mut self, height : usize) -> Self {
+    pub fn height_exact (mut self, height : usize) -> Self {
         self.max_height = height;
         self
     }
@@ -343,16 +345,14 @@ impl TextBoxBuilder {
         let tokens = self.raw_text.split_whitespace();
         let mut pages : Vec<String> = Vec::new();
         let mut new_string = String::new();
-        let mut number_of_pages = 0;
         let mut page_length = 0;
-        let max_page_length = ((self.max_width as i32 - 1) * self.max_height as i32) - 3 * (self.max_width as i32 / 2);
+        let max_page_length = ((self.max_width as i32 - 1) * self.max_height as i32) - 5 * (self.max_width as i32 / 2);
         for token in tokens {
             if page_length + token.len() <= max_page_length as usize {
                 page_length += token.len() + 1;
                 new_string.push_str(token);
                 new_string.push_str(" ");
             } else {
-                number_of_pages += 1;
                 page_length = 0;
                 pages.push(new_string);
                 new_string = String::new();
@@ -373,8 +373,10 @@ impl TextBoxBuilder {
         if !self.animated && pages.len() == 1 {
             close = true;
         }
-
-        TextBox {        
+        let mut buffer = TextBuilder::empty();
+        buffer.line_wrap("");
+        TextBox {
+            buffer : buffer,        
             text: pages,
             max_width : self.max_width,
             max_height : self.max_height,
@@ -386,16 +388,17 @@ impl TextBoxBuilder {
             accumulator : 0.0,
             rate: 50.0,
             position : start_position,
-            pages : number_of_pages,
             current_page : 0,
+            is_focused : self.focused,
         }
     }
 }
 
-#[derive(Component, Debug)]
+#[derive(Component)]
 #[storage(VecStorage)]
 pub struct TextBox {
-    pub text : Vec<String>,
+    pub buffer : TextBuilder,
+    text : Vec<String>,
     pub max_width : usize,
     pub max_height : usize,
     pub is_animated : bool,
@@ -406,50 +409,50 @@ pub struct TextBox {
     accumulator : f32,
     rate : f32,
     pub position : usize,
-    pub pages : usize,
     pub current_page : usize,
+    pub is_focused : bool,
 }
 
 impl TextBox {
 
     pub fn animate_step (&mut self, delta : f32) {
         self.accumulator += delta;
-        if !self.done_animating && !self.waiting_on_proceed {
-            if self.accumulator / self.rate >= 1.0 {
+        if self.accumulator / self.rate >= 1.0 {
+            self.buffer = TextBuilder::empty();
+            if self.position + 1 < self.text[self.current_page].len() {
                 self.position += 1;
-                if self.position >= self.text[self.current_page].len() {
-                    self.position -= 1;
-                    if self.current_page + 1 < self.text.len() {
-                        debug!("new page - waiting");
-                        self.waiting_on_proceed = true;
-                    } else {
-                        self.done_animating = true;
-                        self.waiting_on_close = true;
-                        debug!("Done animating - waiting on close.");
-                    }
+                self.buffer.line_wrap(&self.text[self.current_page][0..self.position]);
+            } else {
+                warn!("new page");
+                if self.current_page + 1 < self.text.len() {
+                    //wait on proceed
+                    self.buffer.line_wrap(&self.text[self.current_page][0..self.position]);
+                    self.waiting_on_proceed = true;
+                } else {
+                    //wait on close
+                    self.buffer.line_wrap(&self.text[self.current_page][0..self.position]);
+                    self.waiting_on_close = true;
                 }
-                self.accumulator = 0.0;
             }
-        } 
+            self.accumulator = 0.0;
+        }
     }
 
     pub fn proceed (&mut self) {
+        // proceed
+        //reset buffer
+        self.waiting_on_proceed = false;
         self.current_page += 1;
-        if self.is_animated {
-            self.waiting_on_proceed = false;
-            self.position = 0;
-        } else {
-            if self.current_page < self.text.len() {
-                self.waiting_on_proceed = true;
-                self.position = self.text[self.current_page].len();
-            } else {
-                self.current_page -= 1;
-                debug!("Waiting on close.");
-                self.waiting_on_proceed = false;
-                self.waiting_on_close = true;
-            }
-        }
-        
+        self.position = 0;
+        self.buffer = TextBuilder::empty();
+    }
+
+    pub fn force_update_buffer (&mut self, text : TextBuilder) {
+        self.buffer = text;
+    }
+
+    pub fn get_buffer (&self) -> &TextBuilder {
+        &self.buffer
     }
 
 }

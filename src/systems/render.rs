@@ -8,7 +8,7 @@ use bracket_lib::prelude::{TextBuilder, TextBlock};
 use object_pool::Reusable;
 
 use crate::components::basic::{Position, Renderable, Inventory, Actor};
-use crate::components::gui::{PlayerCard, HorizontalAlignment, VerticalAlignment, Panel, TextBox};
+use crate::components::gui::{PlayerCard, HorizontalAlignment, VerticalAlignment, Panel, TextBox, DebugInfoBox};
 use crate::components::tag::PlayerTag;
 use crate::raw::RAW;
 
@@ -64,9 +64,8 @@ impl <'a> System<'a> for RenderSystem {
         self.draw_batch.target(0);
         self.draw_batch.cls();
 
-        //TODO add default offset incase gui isnt there
         //get offset from gui
-        for (card) in (&player_card).join() {
+        for card in (&player_card).join() {
             self.horiz_offset = match card.alignment {
                 HorizontalAlignment::RIGHT => -(self.screen_size.0 as i32/8),
                 HorizontalAlignment::LEFT => (self.screen_size.0 as i32/8),
@@ -228,66 +227,42 @@ impl GUIRenderSystem {
     }
 
     pub fn draw_textbox (&mut self, textbox : &TextBox, x : i32, y : i32) {
-        let mut block = TextBlock::new(x,y, textbox.max_width as i32 -5, textbox.max_height as i32);
-        let mut buf = TextBuilder::empty();
-        buf.line_wrap(&textbox.text[textbox.current_page][0..textbox.position]);
-        block.print(&buf);
+        let mut block = TextBlock::new(x, y, textbox.max_width as i32, textbox.max_height as i32);
+        block.print(textbox.get_buffer());
         block.render_to_draw_batch(&mut self.draw_batch);
-        if textbox.waiting_on_proceed {
-            self.draw_batch.print(Point::new(x + 1, y + textbox.max_height as i32), "Press SPACE to continue");
-        }
-
-        if textbox.waiting_on_close && textbox.close_on_end {
-            self.draw_batch.print(Point::new(x + 1, y + textbox.max_height as i32), "Press SPACE to close");
-        }
     }
 }
 
 impl <'a> System<'a> for GUIRenderSystem {
     type SystemData = (
-        ReadStorage <'a, PlayerTag>,
-        ReadStorage <'a, Actor>,
-        ReadStorage <'a, PlayerCard>,
         ReadStorage <'a, Panel>,
         ReadStorage<'a, TextBox>,
+        ReadStorage<'a, DebugInfoBox>,
     );
 
-    fn run (&mut self, (player_tag, actors, player_card, panels, textboxes) : Self::SystemData) {
+    fn run (&mut self, (panels, textboxes, debug_info_box) : Self::SystemData) {
         use specs::Join;
         self.draw_batch.target(0);
 
         // panels
-        for panel in (&panels).join() {
+        for (panel, _debug) in (&panels, !&debug_info_box).join() {
             if panel.enabled {
                 self.draw_panel(&panel);
             }
         }
 
         // textboxes
-        for (textbx, panel) in (&textboxes, &panels).join() {
+        for (textbx, panel, _debug) in (&textboxes, &panels, !&debug_info_box).join() {
             if panel.enabled {
                 self.draw_textbox(textbx, panel.x+1, panel.y+1);
             }
         }
 
-        // for (_card, panel) in (&player_card, &panels).join() {
-        //     if panel.enabled {
-        //         //draw player stats (temporary)
-        //         for (_player, player_actor) in (&player_tag, &actors).join() {
-        //             let hp_info = format!("HP:{}/{}", player_actor.current_health, player_actor.max_health);
-        //             self.draw_batch.print(Point::new(panel.x + 1, 1), hp_info.clone());
-        //             self.draw_bar_horizontal((panel.x + 1, 2), 10, player_actor.current_health, player_actor.max_health, RGB::from_u8(255, 0, 0), RGB::from_u8(0, 0, 0) , true);
-                    
-        //             self.draw_batch.print(Point::new(panel.x + 1, 4), format!("STR:{}", player_actor.strength));
-        //             self.draw_batch.print(Point::new(panel.x + 1, 5), format!("DEX:{}", player_actor.dexterity));
-        //             self.draw_batch.print(Point::new(panel.x + 1, 6), format!("CON:{}", player_actor.constitution));
-        //             self.draw_batch.print(Point::new(panel.x + 1, 7), format!("WIS:{}", player_actor.wisdom));
-        //             self.draw_batch.print(Point::new(panel.x + 1, 8), format!("INT:{}", player_actor.intelligence));
-        //             self.draw_batch.print(Point::new(panel.x + 1, 9), format!("01234567890123456789012345"));
-                           
-        //         }
-        //     }
-        // }
+        //debug panel and info box
+        for (panel, textbx, _debug) in (&panels, &textboxes, &debug_info_box).join() {
+            self.draw_panel(&panel);
+            self.draw_textbox(textbx, panel.x+1, panel.y+1);
+        }
 
         let draw_result = self.draw_batch.submit(1);
         match draw_result {
