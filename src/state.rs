@@ -1,4 +1,4 @@
-use bracket_lib::prelude::{BTerm, GameState, VirtualKeyCode};
+use bracket_lib::prelude::{BTerm, GameState, VirtualKeyCode, INPUT};
 use std::collections::VecDeque;
 
 pub enum StateAction {
@@ -172,13 +172,15 @@ impl GameState for Manager {
 }
 
 pub fn make_portable_ctx (ctx: &mut BTerm) -> PortableContext {
+    let input = INPUT.lock();
+    let shift = input.is_scancode_pressed(42);
     PortableContext {
         fps: ctx.fps,
         delta: ctx.frame_time_ms,
         key: ctx.key,
         mouse_pos: ctx.mouse_pos,
         left_click: ctx.left_click,
-        shift: ctx.shift,
+        shift: shift,
         control: ctx.control,
         alt: ctx.alt,
         quitting: ctx.quitting,
@@ -201,5 +203,388 @@ pub mod time {
         let start = SystemTime::now();
         let since_epoch = start.duration_since(UNIX_EPOCH).expect("Contact Einstein");
         return since_epoch.as_nanos();
+    }
+}
+
+pub mod input {
+    use bracket_lib::prelude::VirtualKeyCode;
+    
+    ///Domine, dimitte peccata mea.
+    pub fn get_char_from_keypress (keycode : VirtualKeyCode, shift : bool) -> char {
+        match keycode {
+            VirtualKeyCode::Space => ' ',
+            VirtualKeyCode::A => {
+                if shift {
+                    'A'
+                } else {
+                    'a'
+                }
+            },
+            VirtualKeyCode::B => {
+                if shift {
+                    'B'
+                } else {
+                    'b'
+                }
+            },
+            VirtualKeyCode::C => {
+                if shift {
+                    'C'
+                } else {
+                    'c'
+                }
+            },
+            VirtualKeyCode::D => {
+                if shift {
+                    'D'
+                } else {
+                    'd'
+                }
+            },
+            VirtualKeyCode::E => {
+                if shift {
+                    'E'
+                } else {
+                    'e'
+                }
+            },
+            VirtualKeyCode::F => {
+                if shift {
+                    'F'
+                } else {
+                    'f'
+                }
+            },
+            VirtualKeyCode::G => {
+                if shift {
+                    'G'
+                } else {
+                    'g'
+                }
+            },
+            VirtualKeyCode::H => {
+                if shift {
+                    'H'
+                } else {
+                    'h'
+                }
+            },
+            VirtualKeyCode::I => {
+                if shift {
+                    'I'
+                } else {
+                    'i'
+                }
+            },
+            VirtualKeyCode::J => {
+                if shift {
+                    'J'
+                } else {
+                    'j'
+                }
+            },
+            VirtualKeyCode::K => {
+                if shift {
+                    'K'
+                } else {
+                    'k'
+                }
+            },
+            VirtualKeyCode::L => {
+                if shift {
+                    'L'
+                } else {
+                    'l'
+                }
+            },
+            VirtualKeyCode::M => {
+                if shift {
+                    'M'
+                } else {
+                    'm'
+                }
+            },
+            VirtualKeyCode::N => {
+                if shift {
+                    'N'
+                } else {
+                    'n'
+                }
+            },
+            VirtualKeyCode::O => {
+                if shift {
+                    'O'
+                } else {
+                    'o'
+                }
+            },
+            VirtualKeyCode::P => {
+                if shift {
+                    'P'
+                } else {
+                    'p'
+                }
+            },
+            VirtualKeyCode::Q => {
+                if shift {
+                    'Q'
+                } else {
+                    'q'
+                }
+            },
+            VirtualKeyCode::R => {
+                if shift {
+                    'R'
+                } else {
+                    'r'
+                }
+            },
+            VirtualKeyCode::S => {
+                if shift {
+                    'S'
+                } else {
+                    's'
+                }
+            },
+            VirtualKeyCode::T => {
+                if shift {
+                    'T'
+                } else {
+                    't'
+                }
+            },
+            VirtualKeyCode::U => {
+                if shift {
+                    'U'
+                } else {
+                    'u'
+                }
+            },
+            VirtualKeyCode::V => {
+                if shift {
+                    'V'
+                } else {
+                    'v'
+                }
+            },
+            VirtualKeyCode::W => {
+                if shift {
+                    'W'
+                } else {
+                    'w'
+                }
+            },
+            VirtualKeyCode::X => {
+                if shift {
+                    'X'
+                } else {
+                    'x'
+                }
+            },
+            VirtualKeyCode::Y => {
+                if shift {
+                    'Y'
+                } else {
+                    'y'
+                }
+            },
+            VirtualKeyCode::Z => {
+                if shift {
+                    'Z'
+                } else {
+                    'z'
+                }
+            },
+            VirtualKeyCode::Key0 => {
+                if shift {
+                    ')'
+                } else {
+                    '0'
+                }
+            },
+            VirtualKeyCode::Key1 => {
+                if shift {
+                    '!'
+                } else {
+                    '1'
+                }
+            },
+            VirtualKeyCode::Key2 => {
+                if shift {
+                    '@'
+                } else {
+                    '2'
+                }
+            },
+            VirtualKeyCode::Key3 => {
+                if shift {
+                    '#'
+                } else {
+                    '3'
+                }
+            },
+            VirtualKeyCode::Key4 => {
+                if shift {
+                    '$'
+                } else {
+                    '4'
+                }
+            },
+            VirtualKeyCode::Key5 => {
+                if shift {
+                    '%'
+                } else {
+                    '5'
+                }
+            },
+            VirtualKeyCode::Key6 => {
+                if shift {
+                    '^'
+                } else {
+                    '6'
+                }
+            },
+            VirtualKeyCode::Key7 => {
+                if shift {
+                    '&'
+                } else {
+                    '7'
+                }
+            },
+            VirtualKeyCode::Key8 => {
+                if shift {
+                    '*'
+                } else {
+                    '8'
+                }
+            },
+            VirtualKeyCode::Key9 => {
+                if shift {
+                    '('
+                } else {
+                    '9'
+                }
+            },
+            VirtualKeyCode::Semicolon => {
+                if shift {
+                    ':'
+                } else {
+                    ';'
+                }
+            },
+            VirtualKeyCode::Apostrophe => {
+                if shift {
+                    '"'
+                } else {
+                    '\''
+                }
+            },
+            VirtualKeyCode::Backslash => {
+                if shift {
+                    '|'
+                } else {
+                    '\\'
+                }
+            },
+            VirtualKeyCode::Slash => {
+                if shift {
+                    '?'
+                } else {
+                    '/'
+                }
+            },
+            VirtualKeyCode::RBracket => {
+                if shift {
+                    '}'
+                } else {
+                    ']'
+                }
+            },
+            VirtualKeyCode::LBracket => {
+                if shift {
+                    '{'
+                } else {
+                    '['
+                }
+            },
+            VirtualKeyCode::Comma => {
+                if shift {
+                    '<'
+                } else {
+                    ','
+                }
+            },
+            VirtualKeyCode::Period => {
+                if shift {
+                    '>'
+                } else {
+                    '.'
+                }
+            },
+            VirtualKeyCode::Grave => {
+                if shift {
+                    '~'
+                } else {
+                    '`'
+                }
+            },
+            VirtualKeyCode::Minus => {
+                if shift {
+                    '_'
+                } else {
+                    '-'
+                }
+            },
+            VirtualKeyCode::Equals => {
+                if shift {
+                    '+'
+                } else {
+                    '='
+                }
+            },
+            VirtualKeyCode::Numpad0 => {
+                '0'
+            },
+            VirtualKeyCode::Numpad1 => {
+                '1'
+            },
+            VirtualKeyCode::Numpad2 => {
+                '2'
+            },
+            VirtualKeyCode::Numpad3 => {
+                '3'
+            },
+            VirtualKeyCode::Numpad4 => {
+                '4'
+            },
+            VirtualKeyCode::Numpad5 => {
+                '5'
+            },
+            VirtualKeyCode::Numpad6 => {
+                '6'
+            },
+            VirtualKeyCode::Numpad7 => {
+                '7'
+            },
+            VirtualKeyCode::Numpad8 => {
+                '8'
+            },
+            VirtualKeyCode::Numpad9 => {
+                '9'
+            },
+            VirtualKeyCode::Add => {
+                '+'
+            },
+            VirtualKeyCode::Subtract => {
+                '-'
+            },
+            VirtualKeyCode::Multiply => {
+                '*'
+            },
+            VirtualKeyCode::Divide => {
+                '/'
+            },
+            _ => '\0',
+        }
     }
 }

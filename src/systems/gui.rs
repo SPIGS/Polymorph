@@ -4,6 +4,7 @@ use crate::components::gui::*;
 use crate::state::{PortableContext, WorldState, CurrentWorldState};
 use crate::components::basic::{Actor, Position};
 use crate::components::tag::PlayerTag;
+use crate::state::input::get_char_from_keypress;
 
 pub struct GUIUpdate;
 
@@ -13,6 +14,7 @@ impl <'a> System <'a> for GUIUpdate {
         ReadStorage <'a, Position>,
         ReadStorage <'a, PlayerTag>,
         ReadStorage <'a, DebugInfoBox>,
+        WriteStorage <'a, TextEntry>,
         WriteStorage <'a, PlayerCard>,
         WriteStorage <'a, Panel>,
         WriteStorage <'a, TextBox>,
@@ -21,7 +23,7 @@ impl <'a> System <'a> for GUIUpdate {
         Entities<'a>
     );
 
-    fn run (&mut self, (actors, positions, player_tag, debuginfo, mut player_card, mut panels, mut textboxes, ctx, mut wrld_state, entities) : Self::SystemData) {
+    fn run (&mut self, (actors, positions, player_tag, debuginfo, mut text_entries, mut player_card, mut panels, mut textboxes, ctx, mut wrld_state, entities) : Self::SystemData) {
         use specs::Join;
 
         //input for palyer card
@@ -116,5 +118,34 @@ impl <'a> System <'a> for GUIUpdate {
             }
 
         }
+
+        //update text entries
+        for (textbx, entry) in (&mut textboxes, &mut text_entries).join() {
+            match ctx.key {
+                Some(k) => {
+                    
+                    if k == VirtualKeyCode::Back {
+                        if entry.text.len() >= 1 {
+                            entry.text.remove(entry.text.len() - 1);
+                        }
+                        let mut new_buffer = TextBuilder::empty();
+                        new_buffer.append(&entry.text);
+                        textbx.force_update_buffer(new_buffer);
+                    } else {
+                        if entry.text.len() < entry.max_length {
+                            let character = get_char_from_keypress(k, ctx.shift);
+                            if character != '\0' {
+                                entry.text.push(character);
+                                let mut new_buffer = TextBuilder::empty();
+                                new_buffer.append(&entry.text);
+                                textbx.force_update_buffer(new_buffer);
+                            }
+                        }
+                    }
+                },
+                None => {},
+            }
+        }
+
     }
 }

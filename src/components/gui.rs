@@ -346,7 +346,7 @@ impl TextBoxBuilder {
         let mut pages : Vec<String> = Vec::new();
         let mut new_string = String::new();
         let mut page_length = 0;
-        let max_page_length = ((self.max_width as i32 - 1) * self.max_height as i32) - 5 * (self.max_width as i32 / 2);
+        let max_page_length = (self.max_width as i32 * self.max_height as i32) - self.max_width as i32;
         for token in tokens {
             if page_length + token.len() <= max_page_length as usize {
                 page_length += token.len() + 1;
@@ -454,6 +454,20 @@ impl TextBox {
     pub fn get_buffer (&self) -> &TextBuilder {
         &self.buffer
     }
-
 }
 
+#[derive(Component)]
+#[storage(VecStorage)]
+pub struct TextEntry {
+    pub text : String,
+    pub max_length : usize,
+}
+
+impl TextEntry {
+    pub fn new (length : usize) -> Self {
+        TextEntry {
+            text : String::default(),
+            max_length : length,
+        }
+    }
+}

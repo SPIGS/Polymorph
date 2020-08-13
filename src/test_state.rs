@@ -14,7 +14,7 @@ use crate::components::basic::{
 };
 use crate::components::gui::{
     DebugInfoBox, HorizontalAlignment, Panel, PanelBuilder, PlayerCard, TextBox, TextBoxBuilder,
-    VerticalAlignment,
+    VerticalAlignment, TextEntry,
 };
 use crate::components::tag::PlayerTag;
 use crate::state::{
@@ -56,6 +56,7 @@ impl<'a, 'b> TestState<'a, 'b> {
         world.register::<LightFlicker>();
         world.register::<TextBox>();
         world.register::<DebugInfoBox>();
+        world.register::<TextEntry>();
 
         world.insert(PortableContext::default());
         world.insert(CurrentWorldState(WorldState::NoAction));
@@ -184,36 +185,11 @@ impl<'a, 'b> State for TestState<'a, 'b> {
             self.world
                 .create_entity()
                 .with(debug_panel)
-                .with(DebugInfoBox { seed : self.seed.clone()})
+                // .with(DebugInfoBox { seed : self.seed.clone()})
+                .with(TextEntry::new(20))
                 .with(debug_box)
                 .build();
         }
-
-        let test_panel = PanelBuilder::new()
-                .width_exact(50)
-                .height_exact(5)
-                .with_horiz_align(HorizontalAlignment::CENTER)
-                .with_vert_align(VerticalAlignment::TOP)
-                .is_decorated(true)
-                .title(String::from("Test"))
-                .title_color(RGB::from_u8(255, 0, 0))
-                .build(ctx.get_char_size());
-
-        let text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
-            let test_box = TextBoxBuilder::new()
-                .width_exact(test_panel.width as usize - 1)
-                .height_exact(test_panel.height as usize - 1)
-                .text(String::from(text))
-                .is_focused(true)
-                .is_animated(true)
-                .is_close_on_end(true)
-                .build();
-
-            self.world
-                .create_entity()
-                .with(test_box)
-                .with(test_panel)
-                .build();
 
         info!("Initialized state");
     }
