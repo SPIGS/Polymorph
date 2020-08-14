@@ -6,6 +6,7 @@ use crate::state::PortableContext;
 use crate::level_generation::map::{Map, VisibilityMap};
 use bracket_lib::prelude::field_of_view;
 use bracket_lib::prelude::Point;
+use crate::state::{WorldState, CurrentWorldState};
 
 pub struct PlayerMoveSystem;
 
@@ -15,20 +16,26 @@ impl <'a> System <'a> for PlayerMoveSystem {
         WriteStorage <'a, Position>,
         WriteStorage <'a, Actor>,
         Read <'a, PortableContext>,
+        Read <'a, CurrentWorldState>,
     );
 
-    fn run (&mut self, (playertag, mut positions, mut _actors, ctx) : Self::SystemData) {
+    fn run (&mut self, (playertag, mut positions, mut _actors, ctx, wrld_state) : Self::SystemData) {
         use specs::Join;
             
-        for (_playertag, position) in (&playertag, &mut positions).join() {
-            match ctx.key {
-                Some(VirtualKeyCode::Up) => {position.y -= 1;},
-                Some(VirtualKeyCode::Down) => {position.y += 1},
-                Some(VirtualKeyCode::Left) => {position.x -= 1},
-                Some(VirtualKeyCode::Right) => {position.x += 1},
-                None => {},
-                _ => {},
-            }
+        match wrld_state.0 {
+            WorldState::NoAction => {
+                for (_playertag, position) in (&playertag, &mut positions).join() {
+                    match ctx.key {
+                        Some(VirtualKeyCode::Up) => {position.y -= 1;},
+                        Some(VirtualKeyCode::Down) => {position.y += 1},
+                        Some(VirtualKeyCode::Left) => {position.x -= 1},
+                        Some(VirtualKeyCode::Right) => {position.x += 1},
+                        None => {},
+                        _ => {},
+                    }
+                }
+            },
+            _ => {},
         }
     }
 
