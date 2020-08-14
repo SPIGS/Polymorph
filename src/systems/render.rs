@@ -94,11 +94,11 @@ impl <'a> System<'a> for RenderSystem {
                 let screen_x = {(self.screen_size.0 as i32 / 2) + (position.x - player_x) + self.horiz_offset};
                 let screen_y = { (self.screen_size.1 as i32 /2) + (position.y - player_y) + self.vert_offset};
 
-                let mut fg : RGB = (renderable.fg * RGB::from_f32(0.25, 0.25, 0.25)).to_greyscale();
-                if fg.to_hsv().v < 0.25 {
-                    fg = HSV::from_f32(fg.to_hsv().h, fg.to_hsv().s, fg.to_hsv().v + 0.3).to_rgb();
+                let mut fg : RGB = (renderable.fg * RGB::from_f32(0.10, 0.10, 0.10)).to_greyscale();
+                if fg.to_hsv().v < 0.10 {
+                    fg = HSV::from_f32(fg.to_hsv().h, fg.to_hsv().s, fg.to_hsv().v + 0.1).to_rgb();
                 }
-                let bg : RGB= (renderable.bg * RGB::from_f32(0.25, 0.25, 0.25)).to_greyscale();
+                let bg : RGB= (renderable.bg * RGB::from_f32(0.10, 0.10, 0.10)).to_greyscale();
                 self.draw_batch.set(Point::new(screen_x, screen_y), ColorPair::new(fg, bg), renderable.glyph);
             }
 
