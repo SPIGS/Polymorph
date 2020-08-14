@@ -1,15 +1,12 @@
 use specs::{System, ReadStorage, Read};
-use bracket_lib::prelude::DrawBatch;
-use bracket_lib::prelude::Point;
-use bracket_lib::prelude::ColorPair;
-use bracket_lib::prelude::{RGB, HSV};
-use bracket_lib::prelude::Rect;
 use object_pool::Reusable;
+use bracket_lib::prelude::{DrawBatch, Point, ColorPair, RGB, HSV, Rect};
 
-use crate::components::basic::{Position, Renderable, Inventory, Actor};
-use crate::components::gui::{PlayerCard, Justification, Panel};
-use crate::components::tag::PlayerTag;
-use crate::raw::RAW;
+use crate::components::{
+    basic::{Position, Renderable, Inventory, Actor},
+    gui::{PlayerCard, Justification, Panel},
+    tag::PlayerTag,
+};
 
 use crate::level_generation::map::VisibilityMap;
 

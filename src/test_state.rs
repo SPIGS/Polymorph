@@ -1,27 +1,26 @@
-use bracket_lib::prelude::BTerm;
-use bracket_lib::prelude::VirtualKeyCode;
-use bracket_lib::prelude::DrawBatch;
-use bracket_lib::prelude::render_draw_buffer;
-use bracket_lib::prelude::RGB;
-use bracket_lib::prelude::Rect;
-
-//use specs::{Dispatcher, World, Builder};
+use bracket_lib::prelude::{BTerm, VirtualKeyCode, DrawBatch, render_draw_buffer, RGB, Rect};
 use specs::prelude::{World, WorldExt, Dispatcher, Builder};
 
 use crate::state::{StateAction, State, PortableContext, make_portable_ctx};
-use crate::components::basic::{Position, Renderable, Inventory, Currency, Actor, Light, ColorLerp, CycleAnimation, LightFlicker};
-use crate::components::tag::PlayerTag;
-use crate::components::gui::{PlayerCard, Panel, Justification};
 
-use crate::systems::render::{RenderSystem, GUIRenderSystem};
-use crate::systems::actor::{PlayerMoveSystem, VisibilitySystem};
-use crate::systems::player::PickUpSystem;
-use crate::systems::gui::GUIUpdate;
-use crate::systems::lighting::LightingSystem;
+use crate::components:: {
+    basic::{Position, Renderable, Inventory, Currency, Actor, Light, ColorLerp, CycleAnimation, LightFlicker},
+    tag::{PlayerTag},
+    gui::{PlayerCard, Panel, Justification},
+};
+
+use crate::systems:: {
+    render::{RenderSystem, GUIRenderSystem, ObjectShader},
+    actor::{PlayerMoveSystem, VisibilitySystem},
+    player::{PickUpSystem},
+    gui::GUIUpdate,
+    lighting::LightingSystem,
+    level::LevelGenSystem,
+    animation::AnimationSystem,
+
+};
+
 use crate::level_generation::map::{Map, MapType, VisibilityMap};
-use crate::systems::level::LevelGenSystem;
-use crate::systems::render::ObjectShader;
-use crate::systems::animation::AnimationSystem;
 
 pub struct TestState <'a, 'b>{
     world : World,

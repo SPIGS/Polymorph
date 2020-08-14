@@ -2,9 +2,7 @@ use rand::{StdRng, SeedableRng};
 use super::cellular;
 use super::features::FeatureType;
 use tile::*;
-use bracket_lib::prelude::RGB;
-use bracket_lib::prelude::{Algorithm2D, BaseMap};
-use bracket_lib::prelude::Point;
+use bracket_lib::prelude::{Algorithm2D, BaseMap, RGB, Point};
 use crate::systems::lighting::lightmask::LightMask;
 
 #[derive(Debug)]
