@@ -8,3 +8,7 @@
 - Dynamic lighting (per channel lighting, shadows)
 - Tile animations
 - Multiplatform
+
+## Acknowledgements
+ - [thebracket](https://github.com/thebracket) and his fantastic library [bracket_lib](https://github.com/thebracket/bracket-lib) which serves as the basis for this project.
+ - The fantastic community over on [r/roguelikedev](https://old.reddit.com/r/roguelikedev/) ❤️
